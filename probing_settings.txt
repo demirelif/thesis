@@ -1,0 +1,83 @@
+
+## Scenario settings
+Scenario.name = wifi_probing
+Scenario.simulateConnections = true
+Scenario.updateInterval = 0.1
+Scenario.endTime = 1000
+
+# "WiFi" interface for all nodes
+wifiInterface.type = SimpleBroadcastInterface
+# Transmit speed of 2 Mbps = 250kBps
+wifiInterface.transmitSpeed = 250k
+wifiInterface.transmitRange = 100
+
+# Define 4 different node groups
+Scenario.nrofHostGroups = 2
+
+# Common settings for all groups
+Group.router = PassiveRouter
+Group.nrofInterfaces = 1
+Group.interface1 = wifiInterface
+# Walking speeds
+Group.speed = 1, 1.5
+
+# group1 (pedestrians) specific settings
+Group1.groupID = p
+Group1.nrofHosts = 3
+Group1.msgTtl = 1
+Group1.movementModel = StreetMovement
+
+# This configuration file adds the probing application for all the Group1 nodes
+
+# Define new application
+probingApp.type = ProbingApplication
+probingApp.interval = 10
+probingApp.destinationRange = 3,6
+probingApp.probeSize = 5
+
+# Define new application
+sensingApp.type = SensingApplication
+sensingApp.interval = 10
+sensingApp.destinationRange = 3,6
+sensingApp.probeSize = 5
+
+# Set Probing app for all nodes
+Group1.nrofApplications = 2
+Group1.application1 = probingApp
+Group1.application2 = sensingApp
+
+
+# sensor1 settings
+Group2.groupID = sensor_
+Group2.nrofHosts = 4
+# Group2.nodeLocation = 50,100
+Group2.movementModel = LinearFormation
+Group2.LinearFormation.startLocation = 50,50
+Group2.LinearFormation.endLocation = 450,50
+
+
+## Movement model settings
+# seed for movement models' pseudo random number generator (default = 0)
+MovementModel.rngSeed = 1
+
+# World's size for Movement Models without implicit size (width, height; meters)
+MovementModel.worldSize = 500, 100
+MovementModel.warmup = 0
+
+# number of reports to load
+Report.nrofReports = 0
+
+## Optimization settings -- these affect the speed of the simulation
+## see World class for details.
+Optimization.cellSizeMult = 5
+Optimization.randomizeUpdateOrder = true
+
+# event generators
+Events.nrof = 0
+
+# how many events to show in the log panel (default = 30)
+GUI.EventLogPanel.nrofEvents = 100
+# Regular Expression log filter (see Pattern-class from the Java API for RE-matching details)
+#GUI.EventLogPanel.REfilter = .*p[1-9]<->p[1-9]$
+
+
