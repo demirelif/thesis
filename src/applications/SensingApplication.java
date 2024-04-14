@@ -6,6 +6,7 @@ import core.Message;
 import core.Settings;
 
 import java.math.BigInteger;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
@@ -80,12 +81,10 @@ public class SensingApplication extends Application {
         this.rng = new Random(this.seed);
     }
 
-    private void receive() {
-
-    }
-
-    private void send(){
-
+    private void crowdCounting(Message msg, DTNHost host) {
+        System.out.println("message received");
+        System.out.println(msg);
+        System.out.println(host);
     }
 
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
@@ -108,27 +107,25 @@ public class SensingApplication extends Application {
         return null;
     }
 
+    private void send(){
+
+    }
+
+    private void receive(){}
+
     @Override
     public Message handle(Message msg, DTNHost host) {
-        // crowd counting first
-        System.out.println("sensing application - handle ");
-        if ( role.equals(RECEIVER) ){
-            System.out.println("receive");
-            receive();
-        }
-        else if ( role.equals(SENDER) ){
-            System.out.println("send");
-            send();
-        }
-        else {
-            // Error
-        }
-        return null;
+        crowdCounting(msg, host);
+        return msg;
     }
 
     @Override
     public void update(DTNHost host) {
-        System.out.println("update - Sensing Application");
+        Collection<Message> messages = host.getMessageCollection();
+        for ( Message message : messages ){
+           // handle(message, host);
+
+        }
     }
 
     @Override

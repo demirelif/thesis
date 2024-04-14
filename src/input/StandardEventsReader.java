@@ -80,6 +80,7 @@ public class StandardEventsReader implements ExternalEventsReader {
 
 
 	public List<ExternalEvent> readEvents(int nrof) {
+		System.out.println("read events");
 		ArrayList<ExternalEvent> events = new ArrayList<ExternalEvent>(nrof);
 		int eventsRead = 0;
 		// skip empty and comment lines

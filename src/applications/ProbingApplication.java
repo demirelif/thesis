@@ -88,7 +88,6 @@ public class ProbingApplication extends Application {
 	 */
 	@Override
 	public void update(DTNHost host) {
-		System.out.println("update - Probing Application");
 		double curTime = SimClock.getTime();
 
 		if (host.getAddress() >= destMin && host.getAddress() <= destMax) {
@@ -99,12 +98,14 @@ public class ProbingApplication extends Application {
 			 * messages get unique IDs labeled with string "probe-SimTime-hostAddr"
 			 * so each message can be tracked to the original host
 			*/
-			Message m = new Message(host, randomHost(), "probe" + "-" +
+			DTNHost receiver = randomHost();
+			Message m = new Message(host, receiver, "probe" + "-" +
 					SimClock.getIntTime() + "-" + host.getAddress(),
 					getprobeSize());
 			m.addProperty("type", "probe");
 			m.setAppID(APP_ID);
 			host.createNewMessage(m);
+			host.sendMessage(m.getId(), receiver);
 
 			// Call listeners
 			super.sendEventToListeners("ProbeSent", null, host);
@@ -123,7 +124,6 @@ public class ProbingApplication extends Application {
 	 */
 	@Override
 	public Message handle(Message msg, DTNHost host) {
-		System.out.println("handle - Probing Application");
 		String type = (String)msg.getProperty("type");
 		if (type == null) return msg; // Not a probe message
 		if (msg.getTo() == host && type.equalsIgnoreCase("probe")) {

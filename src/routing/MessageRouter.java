@@ -177,15 +177,9 @@ public abstract class MessageRouter {
 		this.sendQueueMode = r.sendQueueMode;
 
 		this.applications = new HashMap<String, Collection<Application>>();
-		System.out.println("r");
-		System.out.println(r.applications);
 		for (Collection<Application> apps : r.applications.values()) {
-			System.out.println(apps);
-			System.out.println("apps");
 			for (Application app : apps) {
-				System.out.println(app);
 				addApplication(app.replicate());
-				System.out.println("replicated");
 			}
 		}
 	}
@@ -352,6 +346,15 @@ public abstract class MessageRouter {
 			ml.messageTransferStarted(newMessage, from, getHost());
 		}
 
+		for (Collection<Application> apps : this.applications.values()) {
+			for (Application app : apps) {
+				// Only the sensors should receive messages
+				if ( this.host.toString().contains("sensor")){
+					app.handle(newMessage, from);
+				}
+			}
+		}
+
 		return RCV_OK; // superclass always accepts messages
 	}
 
@@ -364,7 +367,6 @@ public abstract class MessageRouter {
 	 * @return The message that this host received
 	 */
 	public Message messageTransferred(String id, DTNHost from) {
-		System.out.println( " message transferred ");
 		Message incoming = removeFromIncomingBuffer(id, from);
 		boolean isFinalRecipient;
 		boolean isFirstDelivery; // is this first delivered instance of the msg
@@ -639,13 +641,11 @@ public abstract class MessageRouter {
 	 * @param app	The application to attach to this router.
 	 */
 	public void addApplication(Application app) {
-		System.out.println(this.applications);
 		if (!this.applications.containsKey(app.getAppID())) {
 			this.applications.put(app.getAppID(),
 					new LinkedList<Application>());
 		}
 		this.applications.get(app.getAppID()).add(app);
-		System.out.println("done");
 	}
 
 	/**

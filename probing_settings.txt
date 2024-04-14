@@ -3,6 +3,7 @@
 Scenario.name = wifi_probing
 Scenario.simulateConnections = true
 Scenario.updateInterval = 0.1
+Scenario.handleInterval = 0.5
 Scenario.endTime = 1000
 
 # "WiFi" interface for all nodes
@@ -42,9 +43,10 @@ sensingApp.destinationRange = 3,6
 sensingApp.probeSize = 5
 
 # Set Probing app for all nodes
-Group1.nrofApplications = 2
+Group1.nrofApplications = 1
 Group1.application1 = probingApp
-Group1.application2 = sensingApp
+Group2.nrofApplications = 1
+Group2.application1 = sensingApp
 
 
 # sensor1 settings

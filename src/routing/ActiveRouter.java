@@ -134,6 +134,7 @@ public abstract class ActiveRouter extends MessageRouter {
 		}
 
 		// seems OK, start receiving the message
+
 		return super.receiveMessage(m, from);
 	}
 

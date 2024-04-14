@@ -5,6 +5,8 @@
 package routing;
 
 import core.Connection;
+import core.DTNHost;
+import core.Message;
 import core.Settings;
 
 /**
@@ -29,6 +31,11 @@ public class PassiveRouter extends MessageRouter {
 	@Override
 	public void update() {
 		super.update();
+	}
+
+	@Override
+	public int receiveMessage(Message m, DTNHost h){
+		return super.receiveMessage(m, h);
 	}
 
 	@Override

@@ -377,6 +377,15 @@ public class DTNHost implements Comparable<DTNHost> {
 		double distance;
 		double dx, dy;
 
+		// Sending nodes
+		if ( (this.name).equals("p0") || (this.name).equals("p1") || (this.name).equals("p2")){
+			//sendMessage();
+		}
+		// Sensor nodes
+		else {
+
+		}
+
 		if (!isMovementActive() || SimClock.getTime() < this.nextTimeToMove) {
 			return;
 		}
@@ -398,6 +407,7 @@ public class DTNHost implements Comparable<DTNHost> {
 				return; // no more waypoints left
 			}
 			distance = this.location.distance(this.destination);
+		//	sendMessage();
 		}
 
 		// move towards the point for possibleMovement amount

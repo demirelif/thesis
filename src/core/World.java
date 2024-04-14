@@ -186,12 +186,15 @@ public class World {
 		setNextEventQueue();
 
 		/* process all events that are due until next interval update */
+		int counter = 0;
 		while (this.nextQueueEventTime <= runUntil) {
+		//while ( counter < 2 ) {
 			simClock.setTime(this.nextQueueEventTime);
 			ExternalEvent ee = this.nextEventQueue.nextEvent();
 			ee.processEvent(this);
 			updateHosts(); // update all hosts after every event
 			setNextEventQueue();
+			counter++;
 		}
 
 		moveHosts(this.updateInterval);
@@ -249,6 +252,9 @@ public class World {
 		}
 	}
 
+	private void receiveMessage(String message){
+		System.out.println("message - received ");
+	}
 	/**
 	 * Asynchronously cancels the currently running simulation
 	 */

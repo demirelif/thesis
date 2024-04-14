@@ -112,6 +112,7 @@ public abstract class DTNSimUI {
 
 			this.world = this.scen.getWorld();
 			world.warmupMovementModel(warmupTime);
+
 		}
 		catch (SettingsError se) {
 			System.err.println("Can't start: error in configuration file(s)");
