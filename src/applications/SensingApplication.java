@@ -6,10 +6,7 @@ import core.Message;
 import core.Settings;
 
 import java.math.BigInteger;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * The application senses the probe messages and process them
@@ -44,6 +41,10 @@ public class SensingApplication extends Application {
     private int		probeSize=1;
     private int		pongSize=1;
     private Random	rng;
+
+    /** The number of nodes that has send a message  */
+    private int counter = 0;
+    private HashMap<String, Integer> messages = new HashMap<>();
 
     /**
      * Creates a new probing application with the given settings.
@@ -85,6 +86,19 @@ public class SensingApplication extends Application {
         System.out.println("message received");
         System.out.println(msg);
         System.out.println(host);
+        String hostName = host.toString();
+        char nodeNumber = hostName.charAt(hostName.length() - 1);
+        String nodeName = String.valueOf(nodeNumber);
+        /** This is the first time this node is sending a message */
+        if ( messages.get( nodeName ) == null ){
+            messages.put(nodeName, 1);
+        }
+        /** The node is already encountered before */
+        else {
+            messages.replace( nodeName, (messages.get(nodeName) + 1 ) );
+        }
+
+        System.out.println(messages);
     }
 
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
