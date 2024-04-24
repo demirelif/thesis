@@ -39,6 +39,11 @@ public class PassiveRouter extends MessageRouter {
 	}
 
 	@Override
+	public Message messageTransferred(String id, DTNHost from){
+		return super.messageTransferred(id,from);
+	}
+
+	@Override
 	public void changedConnection(Connection con) {
 		// -"-
 	}

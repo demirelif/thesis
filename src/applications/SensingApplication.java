@@ -1,9 +1,6 @@
 package applications;
 
-import core.Application;
-import core.DTNHost;
-import core.Message;
-import core.Settings;
+import core.*;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -83,9 +80,6 @@ public class SensingApplication extends Application {
     }
 
     private void crowdCounting(Message msg, DTNHost host) {
-        System.out.println("message received");
-        System.out.println(msg);
-        System.out.println(host);
         String hostName = host.toString();
         char nodeNumber = hostName.charAt(hostName.length() - 1);
         String nodeName = String.valueOf(nodeNumber);
@@ -97,8 +91,6 @@ public class SensingApplication extends Application {
         else {
             messages.replace( nodeName, (messages.get(nodeName) + 1 ) );
         }
-
-        System.out.println(messages);
     }
 
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
@@ -129,7 +121,24 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
-        crowdCounting(msg, host);
+
+        System.out.println("thisIsFromP " + host);
+        String type = (String)msg.getProperty("type");
+        if (type == null) return msg; // Not a probe message
+        if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
+
+            crowdCounting(msg, host);
+
+            // The message identifier
+            String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
+            Message m = new Message(host, msg.getFrom(), id, 1);
+            m.addProperty("type", "probeResponse");
+            m.setAppID(APP_ID);
+            msg.getTo().messageTransferred(msg.getId(), host);
+
+        }
+
+
         return msg;
     }
 

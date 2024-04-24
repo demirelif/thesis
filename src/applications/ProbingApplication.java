@@ -124,18 +124,27 @@ public class ProbingApplication extends Application {
 	 */
 	@Override
 	public Message handle(Message msg, DTNHost host) {
+
 		String type = (String)msg.getProperty("type");
 		if (type == null) return msg; // Not a probe message
-		if (msg.getTo() == host && type.equalsIgnoreCase("probe")) {
+		if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
 
 			/**
 			 *  placeholder for the actual processing of the received probe
 			 */
 
-			// Send event to listeners
-			super.sendEventToListeners("ReceivedProbe", null, host);
-		}
+			// The message identifier
+			String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
+			Message m = new Message(host, msg.getFrom(), id, getprobeSize());
+			m.addProperty("type", "probe");
+			m.setAppID(APP_ID);
+			host.createNewMessage(m);
 
+
+
+			super.sendEventToListeners("GotPing", null, host);
+			super.sendEventToListeners("SentPong", null, host);
+		}
 		return msg;
 	}
 

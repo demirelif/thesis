@@ -67,7 +67,12 @@ MovementModel.worldSize = 500, 100
 MovementModel.warmup = 0
 
 # number of reports to load
-Report.nrofReports = 0
+Report.nrofReports = 1
+Report.warmup = 0
+Report.reportDir = reports/
+Report.report1 = EventLogReport
+Report.granularity = 1
+Report.nodes = 3-6
 
 ## Optimization settings -- these affect the speed of the simulation
 ## see World class for details.
