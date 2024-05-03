@@ -5,6 +5,9 @@ import core.*;
 import java.math.BigInteger;
 import java.util.*;
 
+import java.security.*;
+import java.security.spec.*;
+
 /**
  * The application senses the probe messages and process them
  *
@@ -38,6 +41,13 @@ public class SensingApplication extends Application {
     private int		probeSize=1;
     private int		pongSize=1;
     private Random	rng;
+
+    // TODO only have one variable called : secretKey
+    private static long secretKeyServer = 1234567891011121314L;
+    private statuc int secretKeyClient = 0;
+
+    // Key * generator of elliptic curve
+    static long serverPointPrecomputed = (secretKeyServer % orderOfGenerator ) * G;
 
     /** The number of nodes that has send a message  */
     private int counter = 0;
@@ -93,6 +103,37 @@ public class SensingApplication extends Application {
         }
     }
 
+
+    // CLIENT
+    private void crowdCountingReceive(){
+        System.out.println("crowd counting -- receiver / client");
+        // Preprocessing Phase
+        System.out.println("Preprocessing phase is started ");
+
+        // database of the server
+        System.out.println(messages);
+
+
+    }
+
+    // SERVER
+    private void crowdCountingSend(){
+        System.out.println("crowd counting -- sender / server");
+        // Preprocessing Phase
+        System.out.println("Preprocessing phase is started");
+        // Processing, batching, encryption
+
+        // database of the server
+        System.out.println(messages);
+
+
+        // Send the encrypted message
+
+        // Return the encyrpted result
+
+        // Decyrption and reporting
+    }
+
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
         // use Vaikuntanathan
 
@@ -113,22 +154,13 @@ public class SensingApplication extends Application {
         return null;
     }
 
-    private void send(){
-
-    }
-
-    private void receive(){}
-
     @Override
     public Message handle(Message msg, DTNHost host) {
 
-        System.out.println("thisIsFromP " + host);
         String type = (String)msg.getProperty("type");
         if (type == null) return msg; // Not a probe message
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
-
-            crowdCounting(msg, host);
-
+          //  crowdCounting(msg, host);
             // The message identifier
             String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
             Message m = new Message(host, msg.getFrom(), id, 1);
@@ -136,6 +168,11 @@ public class SensingApplication extends Application {
             m.setAppID(APP_ID);
             msg.getTo().messageTransferred(msg.getId(), host);
 
+            if ( msg.getTo().getRole().equals("sender") ){
+                crowdCountingReceive();
+            } else if ( msg.getTo().getRole().equals("receiver")){
+                crowdCountingSend();
+            }
         }
 
 

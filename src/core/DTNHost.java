@@ -30,6 +30,7 @@ public class DTNHost implements Comparable<DTNHost> {
 	private Path path;
 	private double speed;
 	private double nextTimeToMove;
+	private String role;
 	private String name;
 	private List<MessageListener> msgListeners;
 	private List<MovementListener> movListeners;
@@ -83,6 +84,15 @@ public class DTNHost implements Comparable<DTNHost> {
 
 		this.nextTimeToMove = movement.nextPathAvailable();
 		this.path = null;
+
+
+		// assign receiver or sender roles to the sensor nodes:
+		if ( address == 6 ){
+			this.role = "receiver";
+		}
+		else if ( address == 3 || address == 5 || address == 4 ){
+			this.role = "sender";
+		}
 
 		if (movLs != null) { // inform movement listeners about the location
 			for (MovementListener l : movLs) {
@@ -547,6 +557,13 @@ public class DTNHost implements Comparable<DTNHost> {
 	 */
 	public int compareTo(DTNHost h) {
 		return this.getAddress() - h.getAddress();
+	}
+
+	/**
+	 * Returns the type of this host
+	 */
+	public String getRole() {
+		return this.role;
 	}
 
 }

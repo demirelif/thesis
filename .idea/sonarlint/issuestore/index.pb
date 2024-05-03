@@ -1,8 +1,6 @@
 
 9
 	README.md,8/e/8ec9a00bfd09b3190ac6b22251dbb1aa95a0579d
-D
-default_settings.txt,d/c/dc26d9a3341e390a7ab04cfd0189f78658c857b5
 P
  src/movement/StreetMovement.java,9/e/9e2c99635d6136aab987adb7242814a7cc452a85
 L

@@ -13,7 +13,7 @@ wifiInterface.transmitSpeed = 250k
 wifiInterface.transmitRange = 100
 
 # Define 4 different node groups
-Scenario.nrofHostGroups = 2
+Scenario.nrofHostGroups = 3
 
 # Common settings for all groups
 Group.router = PassiveRouter
@@ -49,14 +49,23 @@ Group2.nrofApplications = 1
 Group2.application1 = sensingApp
 
 
-# sensor1 settings
-Group2.groupID = sensor_
-Group2.nrofHosts = 4
+# sensor (sender) settings
+Group2.groupID = s-sensor_
+Group2.nrofHosts = 3
+Group2.role = sender
 # Group2.nodeLocation = 50,100
 Group2.movementModel = LinearFormation
 Group2.LinearFormation.startLocation = 50,50
 Group2.LinearFormation.endLocation = 450,50
 
+# sensor (receiver) settings
+Group3.groupID = r-sensor_
+Group3.nrofHosts = 1
+Group3.role = receiver
+# Group3.nodeLocation = 100,100
+Group3.movementModel = LinearFormation
+Group3.LinearFormation.startLocation = 450,50
+Group3.LinearFormation.endLocation = 450,50
 
 ## Movement model settings
 # seed for movement models' pseudo random number generator (default = 0)

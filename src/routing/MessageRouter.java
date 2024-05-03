@@ -161,7 +161,6 @@ public abstract class MessageRouter {
 	 * @param mListeners The message listeners
 	 */
 	public void init(DTNHost host, List<MessageListener> mListeners) {
-		System.out.println("::host " + host);
 		this.incomingMessages = new HashMap<String, Message>();
 		this.messages = new HashMap<String, Message>();
 		this.deliveredMessages = new HashMap<String, Message>();
@@ -352,9 +351,7 @@ public abstract class MessageRouter {
 		for (Collection<Application> apps : this.applications.values()) {
 			for (Application app : apps) {
 				// Only the sensors should receive messages
-				System.out.println("isHost? " + this.host.toString() );
 				if ( this.host.toString().contains("sensor")){
-					System.out.println("true " + app);
 					app.handle(newMessage, from);
 				}
 			}
@@ -372,10 +369,6 @@ public abstract class MessageRouter {
 	 * @return The message that this host received
 	 */
 	public Message messageTransferred(String id, DTNHost from) {
-		if ( "sensor_5".equals( this.host ) ){
-			System.out.println("TRUE!");
-		}
-		System.out.println("hostTo " + this.host);
 		Message incoming = removeFromIncomingBuffer(id, from);
 		boolean isFinalRecipient;
 		boolean isFirstDelivery; // is this first delivered instance of the msg
@@ -404,14 +397,9 @@ public abstract class MessageRouter {
 		// If the application re-targets the message (changes 'to')
 		// then the message is not considered as 'delivered' to this host.
 
-		System.out.println("mesa " + aMessage.getTo() + " " + this.host + " " + getHost());
 		isFinalRecipient = aMessage.getTo() == this.host;
 		isFirstDelivery = isFinalRecipient &&
 		!isDeliveredMessage(aMessage);
-
-
-		System.out.println("Message transferred " + isFinalRecipient + " - messageRouter l.375");
-		System.out.println(isDeliveredMessage(aMessage));
 
 		if (!isFinalRecipient && outgoing!=null) {
 			// not the final recipient and app doesn't want to drop the message
