@@ -1,63 +1,48 @@
 package applications;
 
 import core.*;
+import edu.alibaba.mpc4j.crypto.fhe.BatchEncoder;
+import edu.alibaba.mpc4j.crypto.fhe.Plaintext;
+import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
+import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
+import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
+import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 
 import java.math.BigInteger;
 import java.util.*;
 
-import java.security.*;
-import java.security.spec.*;
-
-/**
- * The application senses the probe messages and process them
- *
- */
 public class SensingApplication extends Application {
-    /** Role of a sensor node */
     public static final String RECEIVER = "Receiver";
-    /** Role of a sensor node */
     public static final String SENDER = "Sender";
-    /** Role of the current sensor node */
     private String role;
 
-    /** Probe sensing interval */
     public static final String PROBE_INTERVAL = "interval";
-    /** Destination address range - inclusive lower, exclusive upper */
     public static final String PROBE_DEST_RANGE = "destinationRange";
-    /** Seed for the app's random number generator */
     public static final String PROBE_SEED = "seed";
-    /** Size of the probe message */
     public static final String PROBE_SIZE = "probeSize";
 
-    /** Application ID */
     public static final String APP_ID = "de.in.tum.SensingApplication";
 
-    // Private vars
-    private double	lastProbe = 0;
-    private double	interval = 10;	/* send one probe every 10 seconds. this interval is configurable */
-    private int		seed = 0;
-    private int		destMin=0;
-    private int		destMax=1;
-    private int		probeSize=1;
-    private int		pongSize=1;
-    private Random	rng;
+    private double lastProbe = 0;
+    private double interval = 10;
+    private int seed = 0;
+    private int destMin = 0;
+    private int destMax = 1;
+    private int probeSize = 1;
+    private int pongSize = 1;
+    private Random rng;
 
-    // TODO only have one variable called : secretKey
+    private double timeInterval = 120;
+    private double timeIntervalIncrease = 10;
+
     private static long secretKeyServer = 1234567891011121314L;
-    private statuc int secretKeyClient = 0;
+    private static int secretKeyClient = 0;
 
-    // Key * generator of elliptic curve
-    static long serverPointPrecomputed = (secretKeyServer % orderOfGenerator ) * G;
-
-    /** The number of nodes that has send a message  */
     private int counter = 0;
-    private HashMap<String, Integer> messages = new HashMap<>();
+    private HashMap<Message, Double> receivedMessages = new HashMap<>();
 
-    /**
-     * Creates a new probing application with the given settings.
-     *
-     * @param s	Settings to use for initializing the application.
-     */
+    private long[] messages = {100, 200, 300, 400};
+
     public SensingApplication(Settings s) {
         if (s.contains(PROBE_INTERVAL)){
             this.interval = s.getDouble(PROBE_INTERVAL);
@@ -69,7 +54,7 @@ public class SensingApplication extends Application {
             this.probeSize = s.getInt(PROBE_SIZE);
         }
         if (s.contains(PROBE_DEST_RANGE)){
-            int[] destination = s.getCsvInts(PROBE_DEST_RANGE,2);
+            int[] destination = s.getCsvInts(PROBE_DEST_RANGE, 2);
             this.destMin = destination[0];
             this.destMax = destination[1];
         }
@@ -78,60 +63,83 @@ public class SensingApplication extends Application {
         super.setAppID(APP_ID);
     }
 
-
-    /**
-     * Copy-constructor
-     *
-     * @param s
-     */
     public SensingApplication(SensingApplication s) {
         super(s);
         this.rng = new Random(this.seed);
     }
 
-    private void crowdCounting(Message msg, DTNHost host) {
-        String hostName = host.toString();
-        char nodeNumber = hostName.charAt(hostName.length() - 1);
-        String nodeName = String.valueOf(nodeNumber);
-        /** This is the first time this node is sending a message */
-        if ( messages.get( nodeName ) == null ){
-            messages.put(nodeName, 1);
-        }
-        /** The node is already encountered before */
-        else {
-            messages.replace( nodeName, (messages.get(nodeName) + 1 ) );
-        }
-    }
-
-
-    // CLIENT
-    private void crowdCountingReceive(){
+    private void crowdCountingClient(Message msg){
         System.out.println("crowd counting -- receiver / client");
         // Preprocessing Phase
         System.out.println("Preprocessing phase is started ");
+        System.out.println("Batching...");
+
+        List<Long> messageIDs = new ArrayList<>();
+        for (long id : messages) {
+            messageIDs.add(id);
+        }
+
+        EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
+        parms.setPolyModulusDegree(64);
+        parms.setCoeffModulus(CoeffModulus.create(64, new int[]{60}));
+        // t must be a prime number and t mod 2n = 1, then we can us batch encode
+        parms.setPlainModulus(257);
+
+        SealContext context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
+        BatchEncoder batchEncoder = new BatchEncoder(context);
+
+        System.out.println("slot count " + batchEncoder.slotCount());
+        System.out.println("message list size " + messageIDs.size());
+
+        // Ensure the plainVec array is large enough to hold all batched data
+        long[] plainVec = new long[batchEncoder.slotCount()];
+        for (int i = 0; i < plainVec.length && i < messageIDs.size(); i++) {
+            plainVec[i] = messageIDs.get(i);
+        }
+
+        Plaintext plain = new Plaintext();
+        batchEncoder.encode(plainVec, plain);
+
+        System.out.println("Batching is completed");
+        System.out.println("encode " + plain);
+        System.out.println("encode vec " + Arrays.toString(plainVec));
+
+        batchEncoder.decode(plain, plainVec);
+        System.out.println("decode " + plain);
+        System.out.println("decode vec " + Arrays.toString(plainVec));
+
+        // Encryption - OPRFs
+
+        System.out.println("Encryption is completed");
+        // End of batching
+        if (!(timeInterval > msg.getReceiveTime())) {
+            timeInterval = timeIntervalIncrease + timeInterval;
+        }
+        receivedMessages.put(msg, timeInterval);
+
+        System.out.println("Batching is completed");
+
+        // Encryption
+        System.out.println("Encryption is completed");
 
         // database of the server
-        System.out.println(messages);
-
-
+        System.out.println(receivedMessages);
     }
 
-    // SERVER
-    private void crowdCountingSend(){
+    private void crowdCountingServer(Message msg){
         System.out.println("crowd counting -- sender / server");
         // Preprocessing Phase
         System.out.println("Preprocessing phase is started");
         // Processing, batching, encryption
 
         // database of the server
-        System.out.println(messages);
-
+        System.out.println(Arrays.toString(messages));
 
         // Send the encrypted message
 
-        // Return the encyrpted result
+        // Return the encrypted result
 
-        // Decyrption and reporting
+        // Decryption and reporting
     }
 
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
@@ -139,12 +147,12 @@ public class SensingApplication extends Application {
 
         // Encryption for set A
         Set<BigInteger> encryptedSetA = new HashSet<>();
-        for (Integer element: setA){
+        for (Integer element : setA) {
             encryptedSetA.add(null); // add the encrypted version here
         }
 
         Set<BigInteger> encryptedSetB = new HashSet<>();
-        for ( Integer element: setB ){
+        for (Integer element : setB) {
             encryptedSetB.add(null); // add the encrypted version here
         }
 
@@ -156,11 +164,10 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
-
-        String type = (String)msg.getProperty("type");
+        String type = (String) msg.getProperty("type");
         if (type == null) return msg; // Not a probe message
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
-          //  crowdCounting(msg, host);
+            //  crowdCounting(msg, host);
             // The message identifier
             String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
             Message m = new Message(host, msg.getFrom(), id, 1);
@@ -168,13 +175,13 @@ public class SensingApplication extends Application {
             m.setAppID(APP_ID);
             msg.getTo().messageTransferred(msg.getId(), host);
 
-            if ( msg.getTo().getRole().equals("sender") ){
-                crowdCountingReceive();
-            } else if ( msg.getTo().getRole().equals("receiver")){
-                crowdCountingSend();
+            System.out.println(msg.getTo().getRole());
+            if (msg.getTo().getRole().equals("sender")) {
+                crowdCountingClient(msg);
+            } else if (msg.getTo().getRole().equals("receiver")) {
+                crowdCountingServer(msg);
             }
         }
-
 
         return msg;
     }
@@ -182,9 +189,8 @@ public class SensingApplication extends Application {
     @Override
     public void update(DTNHost host) {
         Collection<Message> messages = host.getMessageCollection();
-        for ( Message message : messages ){
-           // handle(message, host);
-
+        for (Message message : messages) {
+            // handle(message, host);
         }
     }
 
