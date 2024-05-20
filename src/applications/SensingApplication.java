@@ -1,12 +1,12 @@
 package applications;
 
 import core.*;
-import edu.alibaba.mpc4j.crypto.fhe.BatchEncoder;
-import edu.alibaba.mpc4j.crypto.fhe.Plaintext;
+import edu.alibaba.mpc4j.crypto.fhe.*;
 import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
 import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
+import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -35,6 +35,17 @@ public class SensingApplication extends Application {
     private double timeInterval = 120;
     private double timeIntervalIncrease = 10;
 
+    // Encryption parameters
+    EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
+    Modulus plainModulus = new Modulus(1 << 6);
+    private SealContext context;
+    private KeyGenerator keygen;
+    private PublicKey pk;
+    Encryptor encryptor;
+    Decryptor decryptor;
+
+
+
     private static long secretKeyServer = 1234567891011121314L;
     private static int secretKeyClient = 0;
 
@@ -58,6 +69,11 @@ public class SensingApplication extends Application {
             this.destMin = destination[0];
             this.destMax = destination[1];
         }
+        params.setPlainModulus(plainModulus);
+        params.setPolyModulusDegree(64);
+        params.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
+        context = new SealContext(params, false, CoeffModulus.SecLevelType.NONE);
+        keygen = new KeyGenerator(context);
 
         rng = new Random(this.seed);
         super.setAppID(APP_ID);
@@ -75,9 +91,13 @@ public class SensingApplication extends Application {
         System.out.println("Batching...");
 
         List<Long> messageIDs = new ArrayList<>();
+        messageIDs.add(3L);
+
+        /**
         for (long id : messages) {
-            messageIDs.add(id);
-        }
+            //messageIDs.add(id);
+
+        }*/
 
         EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
         parms.setPolyModulusDegree(64);
@@ -97,18 +117,32 @@ public class SensingApplication extends Application {
             plainVec[i] = messageIDs.get(i);
         }
 
+        Ciphertext encrypted = new Ciphertext();
         Plaintext plain = new Plaintext();
+        System.out.println("before- vec " + Arrays.toString(plainVec));
         batchEncoder.encode(plainVec, plain);
 
         System.out.println("Batching is completed");
         System.out.println("encode " + plain);
         System.out.println("encode vec " + Arrays.toString(plainVec));
+      //  long[] plainVecDecode = new long[batchEncoder.slotCount()];
+       // batchEncoder.decode(plain, plainVecDecode);
+       // System.out.println("decode " + plain);
+        //System.out.println("decode vec " + Arrays.toString(plainVecDecode));
 
-        batchEncoder.decode(plain, plainVec);
-        System.out.println("decode " + plain);
-        System.out.println("decode vec " + Arrays.toString(plainVec));
+       PublicKey pk = new PublicKey();
+       keygen.createPublicKey(pk);
+
+        System.out.println(context);
+        System.out.println(pk);
+        Encryptor encryptor = new Encryptor(context, pk);
+        Decryptor decryptor = new Decryptor(context, keygen.secretKey());
 
         // Encryption - OPRFs
+        encryptor.encrypt(plain, encrypted);
+        decryptor.decrypt(encrypted, plain);
+        System.out.println("encrypted " + encrypted + " ");
+        System.out.println("are they the same; " + plain + " ");
 
         System.out.println("Encryption is completed");
         // End of batching
@@ -131,6 +165,8 @@ public class SensingApplication extends Application {
         // Preprocessing Phase
         System.out.println("Preprocessing phase is started");
         // Processing, batching, encryption
+        List<Long> messageIDs = new ArrayList<>();
+        messageIDs.add(3L);
 
         // database of the server
         System.out.println(Arrays.toString(messages));
