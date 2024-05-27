@@ -7,8 +7,10 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
+import org.bouncycastle.math.ec.custom.djb.Curve25519;
 
 import java.math.BigInteger;
+import java.security.spec.ECPoint;
 import java.util.*;
 
 public class SensingApplication extends Application {
@@ -44,10 +46,16 @@ public class SensingApplication extends Application {
     Encryptor encryptor;
     Decryptor decryptor;
 
+    private static final BigInteger ORDER_OF_GENERATOR = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951");
+
+
+    private static final ECPoint G = new ECPoint( new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
+            new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16));
 
 
     private static long secretKeyServer = 1234567891011121314L;
-    private static int secretKeyClient = 0;
+    private static BigInteger secretKeyClient = new BigInteger("12345678910111213141516171819222222222222");
+
 
     private int counter = 0;
     private HashMap<Message, Double> receivedMessages = new HashMap<>();
@@ -121,7 +129,14 @@ public class SensingApplication extends Application {
 
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
-        decryptor.decrypt(encrypted, plain);
+      //  decryptor.decrypt(encrypted, plain);
+
+        // HERE, plain is the variable that holds the message values
+
+        // SEND the messages
+        // END OF THE OFFLINE PHASE, ONLY DO THIS ONCE
+
+
 
         if (!(timeInterval > msg.getReceiveTime())) {
             timeInterval = timeIntervalIncrease + timeInterval;
@@ -150,6 +165,21 @@ public class SensingApplication extends Application {
         // Decryption and reporting
     }
 
+    private void clientOffline(){
+        long t0 = System.currentTimeMillis();
+
+        // key * generator of elliptic curve
+   //     ECPoint clientPointPrecomputed = G.multiply(oprfClientKey.mod(ORDER_OF_GENERATOR));
+
+
+
+
+
+    }
+
+    private void serverOffline(){
+
+    }
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
         // use Vaikuntanathan
 
