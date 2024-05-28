@@ -129,7 +129,6 @@ public class SensingApplication extends Application {
         batchEncoder.encode(plainVec, plain);
 
         Ciphertext encrypted = new Ciphertext();
-      //  context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
         keygen = new KeyGenerator(context);
 
         PublicKey pk = new PublicKey();
