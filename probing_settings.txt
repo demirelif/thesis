@@ -49,7 +49,7 @@ Group2.nrofApplications = 1
 Group2.application1 = sensingApp
 
 
-# sensor (sender) settings
+# sensor (sender/server) settings
 Group2.groupID = s-sensor_
 Group2.nrofHosts = 3
 Group2.role = sender
@@ -58,7 +58,7 @@ Group2.movementModel = LinearFormation
 Group2.LinearFormation.startLocation = 50,50
 Group2.LinearFormation.endLocation = 450,50
 
-# sensor (receiver) settings
+# sensor (receiver/client) settings
 Group3.groupID = r-sensor_
 Group3.nrofHosts = 1
 Group3.role = receiver

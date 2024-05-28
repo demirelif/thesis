@@ -7,14 +7,17 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
-import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
-import org.bouncycastle.math.ec.custom.djb.Curve25519;
-import org.bouncycastle.crypto.ec.ECEncryptor;
 import org.bouncycastle.math.ec.ECCurve;
 
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
+import util.PRF;
+import util.PSI.AuxiliaryFunctions;
+import util.PSI.OPRF;
+import util.PSI.Parameters;
+import util.PSI.SimpleHash;
+
 import java.math.BigInteger;
 
 import java.util.*;
@@ -62,15 +65,15 @@ public class SensingApplication extends Application {
             new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
             new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
     );
-    private static long secretKeyServer = 1234567891011121314L;
+    private static BigInteger secretKeyServer = new BigInteger("1234567891011121314");
     private static BigInteger secretKeyClient = new BigInteger("12345678910111213141516171819222222222222");
 
-
-    private int counter = 0;
     private final HashMap<Message, Double> receivedMessagesServer = new HashMap<>();
     private final HashMap<Message, Double> receivedMessagesClient = new HashMap<>();
 
-    private long[] messages = {100, 200, 300, 400};
+    private final List<Message> encryptedMessagesServer = new ArrayList<>();
+    private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
+
 
     public SensingApplication(Settings s) {
         if (s.contains(PROBE_INTERVAL)){
@@ -137,30 +140,88 @@ public class SensingApplication extends Application {
         receivedMessagesClient.put(msg, msg.getReceiveTime());
     }
 
+    /** Receives and saves the complete message list for the client */
     private void crowdCountingClient(Message msg){
         receivedMessagesClient.put(msg, msg.getReceiveTime());
     }
 
+    /** Receives and saves the complete message list for the server */
     private void crowdCountingServer(Message msg){
         receivedMessagesServer.put(msg, msg.getReceiveTime());
     }
 
+    /** The preprocessing phase (OPRF, Batching) for the client */
     private void clientOffline(){
         long t0 = System.currentTimeMillis();
-
-        // key * generator of elliptic curve
-
-        // Perform the multiplication
         org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyClient.mod(ORDER_OF_GENERATOR));
         System.out.println("Client Point Precomputed: " + clientPointPrecomputed);
 
-        // The encoded client set of messages
-
+        // OPRF Layer: encoding the client's set as elliptic curve points
+        for ( Message msg : receivedMessagesClient.keySet()){
+            encryptedMessagesClient.add(PRF.clientPRFOffline(msg.getId(), clientPointPrecomputed));
+        }
+        long t1 = System.currentTimeMillis();
+        System.out.println("Client OFFLINE time: " + (t1 - t0) + " ms");
     }
 
+    /** The preprocessing phase (OPRF, Batching) for the server */
     private void serverOffline(){
+        long t0 = System.currentTimeMillis();
+        org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyServer.mod(ORDER_OF_GENERATOR));
+        System.out.println("Server Point Precomputed: " + serverPointPrecomputed);
+
+
+        List<Integer> messageIDs = new ArrayList<>();
+        for (Message msg : receivedMessagesServer.keySet()){
+            messageIDs.add(Integer.getInteger(msg.getId()));
+        }
+
+        // Apply PRF to a set of server, using parallel computation
+        List<BigInteger> prfedServerSetList = PRF.serverPrfOfflineParallel(messageIDs, serverPointPrecomputed);
+        Set<BigInteger> prfedServerSet = new HashSet<>(prfedServerSetList);
+        long t1 = System.currentTimeMillis();
+
+        int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
+        BigInteger dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE);
+        int serverSize = messageIDs.size();
+        int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.OUTPUT_BITS;
+        int numberOfBins = (int) Math.pow(2, Parameters.OUTPUT_BITS);
+
+        SimpleHash sh = new SimpleHash(Parameters.HASH_SEEDS);
+        for ( BigInteger item: prfedServerSet){
+            for ( int i = 0; i < Parameters.NUMBER_OF_HASHES; i++ ){
+                sh.insert(item, i);
+            }
+        }
+        // Perform partitioning and create polynomial coefficients
+        long t2 = System.currentTimeMillis();
+        List<List<BigInteger>> poly_coeffs = new ArrayList<>();
+        for (int i = 0; i < numberOfBins; i++) {
+            List<BigInteger> coeffs_from_bin = new ArrayList<>();
+            for (int j = 0; j < Parameters.ALPHA; j++) {
+                List<BigInteger> roots = new ArrayList<>();
+                for (int r = 0; r < miniBinCapacity; r++) {
+                    roots.add(sh.getSimpleHashedData()[i][miniBinCapacity * j + r]);
+                }
+                // TODO this method is currently returning null
+                List<BigInteger> coeffs_from_roots = AuxiliaryFunctions.coeffsFromRoots(roots, Parameters.PLAIN_MODULUS);
+                coeffs_from_bin.addAll(coeffs_from_roots);
+            }
+            poly_coeffs.add(coeffs_from_bin);
+        }
+
+        long t3 = System.currentTimeMillis();
+
+        System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
 
     }
+
+    private void clientOnline(){
+
+    }
+
+    private void serverOnline(){}
+
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
         // use Vaikuntanathan
 
@@ -195,9 +256,9 @@ public class SensingApplication extends Application {
             msg.getTo().messageTransferred(msg.getId(), host);
 
             if (msg.getTo().getRole().equals("sender")) {
-                crowdCountingClient(msg);
-            } else if (msg.getTo().getRole().equals("receiver")) {
                 crowdCountingServer(msg);
+            } else if (msg.getTo().getRole().equals("receiver")) {
+                crowdCountingClient(msg);
             }
         }
 
