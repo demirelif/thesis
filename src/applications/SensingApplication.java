@@ -7,10 +7,16 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.custom.djb.Curve25519;
+import org.bouncycastle.crypto.ec.ECEncryptor;
+import org.bouncycastle.math.ec.ECCurve;
 
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
 import java.math.BigInteger;
-import java.security.spec.ECPoint;
+
 import java.util.*;
 
 public class SensingApplication extends Application {
@@ -46,19 +52,23 @@ public class SensingApplication extends Application {
     Encryptor encryptor;
     Decryptor decryptor;
 
+    // Defines the curve
+    private static final ECCurve CURVE = new SecP256K1Curve();
+
     private static final BigInteger ORDER_OF_GENERATOR = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951");
 
-
-    private static final ECPoint G = new ECPoint( new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
-            new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16));
-
-
+    // Defines the generator point G
+    private static final ECPoint G = CURVE.createPoint(
+            new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
+            new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
+    );
     private static long secretKeyServer = 1234567891011121314L;
     private static BigInteger secretKeyClient = new BigInteger("12345678910111213141516171819222222222222");
 
 
     private int counter = 0;
-    private HashMap<Message, Double> receivedMessages = new HashMap<>();
+    private final HashMap<Message, Double> receivedMessagesServer = new HashMap<>();
+    private final HashMap<Message, Double> receivedMessagesClient = new HashMap<>();
 
     private long[] messages = {100, 200, 300, 400};
 
@@ -88,9 +98,8 @@ public class SensingApplication extends Application {
         this.rng = new Random(this.seed);
     }
 
-    private void crowdCountingClient(Message msg){
-        System.out.println("crowd counting -- receiver / client");
 
+    private void crowdCountingClientWithEncryption(Message msg){
         List<Long> messageIDs = new ArrayList<>();
         messageIDs.add(3L);
 
@@ -104,7 +113,6 @@ public class SensingApplication extends Application {
         SealContext context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
         BatchEncoder batchEncoder = new BatchEncoder(context);
 
-
         // Ensure the plainVec array is large enough to hold all batched data
         long[] plainVec = new long[batchEncoder.slotCount()];
         for (int i = 0; i < plainVec.length && i < messageIDs.size(); i++) {
@@ -113,9 +121,6 @@ public class SensingApplication extends Application {
 
         Plaintext plain = new Plaintext();
         batchEncoder.encode(plainVec, plain);
-
-  //      long[] plainVec2 = new long[batchEncoder.slotCount()];
-  //      batchEncoder.decode(plain, plainVec2);
 
         Ciphertext encrypted = new Ciphertext();
         context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
@@ -126,54 +131,30 @@ public class SensingApplication extends Application {
 
         Encryptor encryptor = new Encryptor(context, pk);
         Decryptor decryptor = new Decryptor(context, keygen.secretKey());
-
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
-      //  decryptor.decrypt(encrypted, plain);
 
-        // HERE, plain is the variable that holds the message values
+        receivedMessagesClient.put(msg, msg.getReceiveTime());
+    }
 
-        // SEND the messages
-        // END OF THE OFFLINE PHASE, ONLY DO THIS ONCE
-
-
-
-        if (!(timeInterval > msg.getReceiveTime())) {
-            timeInterval = timeIntervalIncrease + timeInterval;
-        }
-        receivedMessages.put(msg, timeInterval);
-
-        // database of the server
-        System.out.println(receivedMessages);
+    private void crowdCountingClient(Message msg){
+        receivedMessagesClient.put(msg, msg.getReceiveTime());
     }
 
     private void crowdCountingServer(Message msg){
-        System.out.println("crowd counting -- sender / server");
-        // Preprocessing Phase
-        System.out.println("Preprocessing phase is started");
-        // Processing, batching, encryption
-        List<Long> messageIDs = new ArrayList<>();
-        messageIDs.add(3L);
-
-        // database of the server
-        System.out.println(Arrays.toString(messages));
-
-        // Send the encrypted message
-
-        // Return the encrypted result
-
-        // Decryption and reporting
+        receivedMessagesServer.put(msg, msg.getReceiveTime());
     }
 
     private void clientOffline(){
         long t0 = System.currentTimeMillis();
 
         // key * generator of elliptic curve
-   //     ECPoint clientPointPrecomputed = G.multiply(oprfClientKey.mod(ORDER_OF_GENERATOR));
 
+        // Perform the multiplication
+        org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyClient.mod(ORDER_OF_GENERATOR));
+        System.out.println("Client Point Precomputed: " + clientPointPrecomputed);
 
-
-
+        // The encoded client set of messages
 
     }
 
@@ -213,7 +194,6 @@ public class SensingApplication extends Application {
             m.setAppID(APP_ID);
             msg.getTo().messageTransferred(msg.getId(), host);
 
-            System.out.println(msg.getTo().getRole());
             if (msg.getTo().getRole().equals("sender")) {
                 crowdCountingClient(msg);
             } else if (msg.getTo().getRole().equals("receiver")) {
