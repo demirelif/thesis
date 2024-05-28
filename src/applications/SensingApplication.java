@@ -20,6 +20,7 @@ import util.PSI.SimpleHash;
 
 import java.math.BigInteger;
 
+import java.net.ServerSocket;
 import java.util.*;
 
 public class SensingApplication extends Application {
@@ -68,12 +69,14 @@ public class SensingApplication extends Application {
     private static BigInteger secretKeyServer = new BigInteger("1234567891011121314");
     private static BigInteger secretKeyClient = new BigInteger("12345678910111213141516171819222222222222");
 
+    private BigInteger OPRFServerKey = new BigInteger("1234567891011121314151617181920");
+    private BigInteger OPRFClientKey = new BigInteger("12345678910111213141516171819222222222222");
+
     private final HashMap<Message, Double> receivedMessagesServer = new HashMap<>();
     private final HashMap<Message, Double> receivedMessagesClient = new HashMap<>();
 
     private final List<Message> encryptedMessagesServer = new ArrayList<>();
     private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
-
 
     public SensingApplication(Settings s) {
         if (s.contains(PROBE_INTERVAL)){
@@ -126,7 +129,7 @@ public class SensingApplication extends Application {
         batchEncoder.encode(plainVec, plain);
 
         Ciphertext encrypted = new Ciphertext();
-        context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
+      //  context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
         keygen = new KeyGenerator(context);
 
         PublicKey pk = new PublicKey();
@@ -210,15 +213,13 @@ public class SensingApplication extends Application {
             poly_coeffs.add(coeffs_from_bin);
         }
 
+        // pickle.dump( poly_coeffs, f);
+
         long t3 = System.currentTimeMillis();
 
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
-
     }
 
-    private void clientOnline(){
-
-    }
 
     private void serverOnline(){}
 
