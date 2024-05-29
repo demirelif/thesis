@@ -8,8 +8,10 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
+import util.OPRF;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -45,6 +47,14 @@ public class PSIClient {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** Applying inverse of the secret key, OPRFClientKey */
+    public void finalizeOPRF(BigInteger OPRFClientKey){
+        // Computing the inverse of the secret key
+        BigInteger keyInverse = OPRFClientKey.modInverse( OPRF.getOrderOfGenerator() );
+
+        // Perform PRF processing
     }
 
     public void clientOnline(ArrayList<Integer> messageIDs) throws IOException {

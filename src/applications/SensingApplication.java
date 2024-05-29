@@ -179,23 +179,24 @@ public class SensingApplication extends Application {
 
     }
 
-    /** The preprocessing phase (OPRF, Batching) for the server */
+    /** The preprocessing phase (OPRF, Simple hashing, partitioning, finding the polynomials ) for the server */
     private void serverOffline(){
         long t0 = System.currentTimeMillis();
         org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyServer.mod(ORDER_OF_GENERATOR));
         System.out.println("Server Point Precomputed: " + serverPointPrecomputed);
 
-
         List<Integer> messageIDs = new ArrayList<>();
-        for (Message msg : receivedMessagesServer.keySet()){
+        for (Message msg : receivedMessagesClient.keySet()){
             messageIDs.add(Integer.getInteger(msg.getId()));
         }
+        System.out.println("done");
 
         // Apply PRF to a set of server, using parallel computation
-        List<BigInteger> prfedServerSetList = OPRF.serverPrfOfflineParallel(messageIDs, serverPointPrecomputed);
+        List<BigInteger> prfedServerSetList = OPRF.serverPrfOffline(messageIDs, serverPointPrecomputed);
         Set<BigInteger> prfedServerSet = new HashSet<>(prfedServerSetList);
         long t1 = System.currentTimeMillis();
 
+        System.out.println(t1);
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         BigInteger dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE);
         int serverSize = messageIDs.size();
@@ -209,8 +210,10 @@ public class SensingApplication extends Application {
             }
         }
         // Perform partitioning and create polynomial coefficients
+        // TODO solve root is null problem
         long t2 = System.currentTimeMillis();
         List<List<BigInteger>> poly_coeffs = new ArrayList<>();
+        /*
         for (int i = 0; i < numberOfBins; i++) {
             List<BigInteger> coeffs_from_bin = new ArrayList<>();
             for (int j = 0; j < Parameters.ALPHA; j++) {
@@ -218,12 +221,13 @@ public class SensingApplication extends Application {
                 for (int r = 0; r < miniBinCapacity; r++) {
                     roots.add(sh.getSimpleHashedData()[i][miniBinCapacity * j + r]);
                 }
-                // TODO this method is currently returning null
-                List<BigInteger> coeffs_from_roots = AuxiliaryFunctions.coeffsFromRoots(roots, Parameters.PLAIN_MODULUS);
+                ArrayList<BigInteger> coeffs_from_roots = (ArrayList<BigInteger>) AuxiliaryFunctions.coeffsFromRoots(roots, Parameters.PLAIN_MODULUS);
                 coeffs_from_bin.addAll(coeffs_from_roots);
             }
             poly_coeffs.add(coeffs_from_bin);
         }
+
+         */
 
         // pickle.dump( poly_coeffs, f);
 

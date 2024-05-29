@@ -1,6 +1,5 @@
 package util;
 
-import core.Message;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
@@ -95,5 +94,67 @@ public class OPRF {
         }
 
         return finalOutput;
+    }
+
+    public static List<BigInteger> clientPrfOnlineParallel(BigInteger keyInverse, List<BigInteger> vectorOfPairs) {
+        int numberOfPairs = vectorOfPairs.size();
+        int division = numberOfPairs / NUMBER_OF_PROCESSES;
+        List<List<BigInteger>> inputs = new ArrayList<>();
+
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++) {
+            int start = i * division;
+            int end = (i + 1) * division;
+            inputs.add(vectorOfPairs.subList(start, end));
+        }
+
+        if (numberOfPairs % NUMBER_OF_PROCESSES != 0) {
+            inputs.add(vectorOfPairs.subList(NUMBER_OF_PROCESSES * division, numberOfPairs));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(NUMBER_OF_PROCESSES);
+        List<Future<List<BigInteger>>> futures = new ArrayList<>();
+
+        for (List<BigInteger> input : inputs) {
+           // Callable<List<BigInteger>> task = () -> clientPrfOnline(keyInverse, (List<BigInteger[]>) input);
+           // futures.add(executor.submit(task));
+        }
+
+        List<BigInteger> finalOutput = new ArrayList<>();
+        try {
+            for (Future<List<BigInteger>> future : futures) {
+                finalOutput.addAll(future.get());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            executor.shutdown();
+        }
+
+        return finalOutput;
+    }
+    public static List<BigInteger> clientPrfOnline(BigInteger keyInverse, List<BigInteger[]> vectorOfPairs) {
+        List<ECPoint> vectorOfPoints = new ArrayList<>();
+        for (BigInteger[] pair : vectorOfPairs) {
+            ECPoint point = CURVE_USED.createPoint(pair[0], pair[1]);
+            vectorOfPoints.add(point);
+        }
+
+        List<ECPoint> vectorKeyInversePoints = new ArrayList<>();
+        for (ECPoint point : vectorOfPoints) {
+            ECPoint resultPoint = point.multiply(keyInverse);
+            vectorKeyInversePoints.add(resultPoint);
+        }
+
+        List<BigInteger> output = new ArrayList<>();
+        for (ECPoint point : vectorKeyInversePoints) {
+            BigInteger x = point.getAffineXCoord().toBigInteger();
+            BigInteger processedValue = (x.shiftRight(logP - SIGMA_MAX - 10)).and(MASK);
+            output.add(processedValue);
+        }
+
+        return output;
+    }
+    public static java.math.BigInteger getOrderOfGenerator() {
+        return orderOfGenerator;
     }
 }
