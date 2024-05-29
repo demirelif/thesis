@@ -40,25 +40,25 @@ public class OPRF {
         return Arrays.asList(xItem, yItem);
     }
 
-    public static List<BigInteger> serverPrfOffline(List<Integer> vectorOfItems, ECPoint point) {
+    public static List<Integer> serverPrfOffline(List<Integer> vectorOfItems, ECPoint point) {
         List<ECPoint> vectorOfMultiples = new ArrayList<>();
         for (int item : vectorOfItems) {
             ECPoint resultPoint = point.multiply(new BigInteger(String.valueOf(item))).normalize();
             vectorOfMultiples.add(resultPoint);
         }
 
-        List<BigInteger> output = new ArrayList<>();
+        List<Integer> output = new ArrayList<>();
         for (ECPoint Q : vectorOfMultiples) {
             BigInteger xItem = Q.getAffineXCoord().toBigInteger();
             BigInteger shiftedXItem = xItem.shiftRight(logP - SIGMA_MAX - 10);
             BigInteger maskedXItem = shiftedXItem.and(MASK);
-            output.add(maskedXItem);
+            output.add(maskedXItem.intValue());
         }
 
         return output;
     }
 
-    public static List<BigInteger> serverPrfOfflineParallel(List<Integer> vectorOfItems, ECPoint point) {
+    public static List<Integer> serverPrfOfflineParallel(List<Integer> vectorOfItems, ECPoint point) {
         int division = (vectorOfItems.size() + NUMBER_OF_PROCESSES - 1) / NUMBER_OF_PROCESSES;
         List<List<Integer>> inputs = new ArrayList<>();
         for (int i = 0; i < NUMBER_OF_PROCESSES; i++) {
@@ -75,16 +75,16 @@ public class OPRF {
             inputsAndPoint.add(new Pair(inputVec, point));
         }
 
-        List<Callable<List<BigInteger>>> tasks = new ArrayList<>();
+        List<Callable<List<Integer>>> tasks = new ArrayList<>();
         for (Pair pair : inputsAndPoint) {
             tasks.add(() -> serverPrfOffline(pair.inputVec, pair.point));
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(NUMBER_OF_PROCESSES);
-        List<BigInteger> finalOutput = new ArrayList<>();
+        List<Integer> finalOutput = new ArrayList<>();
         try {
-            List<Future<List<BigInteger>>> futures = executor.invokeAll(tasks);
-            for (Future<List<BigInteger>> future : futures) {
+            List<Future<List<Integer>>> futures = executor.invokeAll(tasks);
+            for (Future<List<Integer>> future : futures) {
                 finalOutput.addAll(future.get());
             }
         } catch (InterruptedException | ExecutionException e) {

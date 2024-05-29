@@ -192,47 +192,67 @@ public class SensingApplication extends Application {
 
         System.out.println("server before  " + MACAddressesServer);
         // Apply PRF to a set of server, using parallel computation
-        List<BigInteger> prfedServerSetList = OPRF.serverPrfOfflineParallel(MACAddressesServer, serverPointPrecomputed);
-        Set<BigInteger> prfedServerSet = new HashSet<>(prfedServerSetList);
+        List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(MACAddressesServer, serverPointPrecomputed);
+        Set<Integer> prfedServerSet = new HashSet<>(prfedServerSetList);
         long t1 = System.currentTimeMillis();
 
         System.out.println(t1);
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
-        BigInteger dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE);
+        int dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE).intValue();
         int serverSize = MACAddressesServer.size();
         int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.OUTPUT_BITS;
+        System.out.println("minibin cap " + miniBinCapacity);
         int numberOfBins = (int) Math.pow(2, Parameters.OUTPUT_BITS);
 
+        System.out.println("set " + prfedServerSet);
         SimpleHash sh = new SimpleHash(Parameters.HASH_SEEDS);
-        for ( BigInteger item: prfedServerSet){
+        for ( int item: prfedServerSet){
             for ( int i = 0; i < Parameters.NUMBER_OF_HASHES; i++ ){
                 sh.insert(item, i);
             }
         }
-        // Perform partitioning and create polynomial coefficients
-        // TODO solve root is null problem
-        long t2 = System.currentTimeMillis();
-        List<List<BigInteger>> poly_coeffs = new ArrayList<>();
-        /*
-        for (int i = 0; i < numberOfBins; i++) {
-            List<BigInteger> coeffs_from_bin = new ArrayList<>();
-            for (int j = 0; j < Parameters.ALPHA; j++) {
-                List<BigInteger> roots = new ArrayList<>();
-                for (int r = 0; r < miniBinCapacity; r++) {
-                    roots.add(sh.getSimpleHashedData()[i][miniBinCapacity * j + r]);
+
+        // Pad with dummyMessages
+        for ( int i = 0; i < numberOfBins; i++ ){
+            for ( int j = 0; j < Parameters.BIN_CAPACITY; j++ ){
+                if ( (sh.getSimpleHashedData()[i][j]) == -1 ){
+                    sh.getSimpleHashedData()[i][j] = dummyMessageServer;
                 }
+            }
+        }
+
+        // Perform partitioning and create polynomial coefficients
+
+        List<List<BigInteger>> poly_coeffs = new ArrayList<>();
+
+        for (int i = 0; i < numberOfBins; i++) {
+            // Create a list of coefficients of all minibins from concatenating the list of coefficients of each minibin
+            List<BigInteger> coeffs_from_bin = new ArrayList<>();
+
+            for (int j = 0; j < Parameters.ALPHA; j++) {
+
+                List<Integer> roots = new ArrayList<>();
+
+                for (int r = 0; r < miniBinCapacity; r++) {
+                    int index = miniBinCapacity * j + r;
+                    if ( index < sh.getSimpleHashedData()[i].length ){
+                        roots.add(sh.getSimpleHashedData()[i][index]);
+                    }
+                }
+
                 ArrayList<BigInteger> coeffs_from_roots = (ArrayList<BigInteger>) AuxiliaryFunctions.coeffsFromRoots(roots, Parameters.PLAIN_MODULUS);
                 coeffs_from_bin.addAll(coeffs_from_roots);
             }
             poly_coeffs.add(coeffs_from_bin);
         }
 
-         */
+        System.out.println(poly_coeffs);
 
         // pickle.dump( poly_coeffs, f);
 
         long t3 = System.currentTimeMillis();
 
+        // TODO this part is exteremely slow ~ 10s
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
     }
 

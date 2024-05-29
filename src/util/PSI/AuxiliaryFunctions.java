@@ -40,14 +40,15 @@ public class AuxiliaryFunctions {
         return result;
     }
 
-    public static List<BigInteger> coeffsFromRoots(List<BigInteger> roots, int modulus) {
+    public static List<BigInteger> coeffsFromRoots(List<Integer> roots, int modulus) {
         // Start with the polynomial 1 (which is just a constant term)
         List<BigInteger> coefficients = new ArrayList<>();
         coefficients.add(BigInteger.ONE);
 
         // Convolve with each root
-        for (BigInteger root : roots) {
-            coefficients = convolve(coefficients, Arrays.asList(BigInteger.ONE, root.negate()), BigInteger.valueOf(modulus));
+        for (Integer root : roots) {
+            BigInteger bigRoot = new BigInteger(root.toString());
+            coefficients = convolve(coefficients, Arrays.asList(BigInteger.ONE, bigRoot.negate()), BigInteger.valueOf(modulus));
         }
 
         return coefficients;

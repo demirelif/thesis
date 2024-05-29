@@ -10,7 +10,7 @@ public class Parameters {
     public static final int CLIENT_SIZE = 4000;
     public static final int INTERSECTION_SIZE = 3500;
 
-    // Seeds used by both the Server and the Client for the Murmur hash functions
+    // Seeds used by both the Server and the Client for the hash functions
     public static final List<Long> HASH_SEEDS = Arrays.asList(123456789L, 10111213141516L, 17181920212223L);
 
     // Output bits: number of bits of output of the hash functions
