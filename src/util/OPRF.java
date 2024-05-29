@@ -43,19 +43,19 @@ public class OPRF {
     public static List<BigInteger> serverPrfOffline(List<Integer> vectorOfItems, ECPoint point) {
         List<ECPoint> vectorOfMultiples = new ArrayList<>();
         for (int item : vectorOfItems) {
-            BigInteger itemBigInt = BigInteger.valueOf(item);
-            vectorOfMultiples.add(point.multiply(itemBigInt));
+            ECPoint resultPoint = point.multiply(new BigInteger(String.valueOf(item))).normalize();
+            vectorOfMultiples.add(resultPoint);
         }
 
-        List<BigInteger> result = new ArrayList<>();
+        List<BigInteger> output = new ArrayList<>();
         for (ECPoint Q : vectorOfMultiples) {
             BigInteger xItem = Q.getAffineXCoord().toBigInteger();
             BigInteger shiftedXItem = xItem.shiftRight(logP - SIGMA_MAX - 10);
             BigInteger maskedXItem = shiftedXItem.and(MASK);
-            result.add(maskedXItem);
+            output.add(maskedXItem);
         }
 
-        return result;
+        return output;
     }
 
     public static List<BigInteger> serverPrfOfflineParallel(List<Integer> vectorOfItems, ECPoint point) {
@@ -93,6 +93,7 @@ public class OPRF {
             executor.shutdown();
         }
 
+        System.out.println("ServerPRFOffline: " + finalOutput);
         return finalOutput;
     }
 
