@@ -23,7 +23,6 @@ import static util.PSI.AuxiliaryFunctions.windowing;
 // Performs Cuckoo hashing
 public class PSIClient {
     private ArrayList<Integer> elements;
-    private static int port = 4470;
     private static final int modulusDegree = 64;
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
     Modulus plainModulus = new Modulus(1 << 6);
@@ -55,12 +54,7 @@ public class PSIClient {
         int log2 = (int) (Math.log(miniBinCaapacity) / Math.log(2));
         int logBELL = log2 / Parameters.ELL + 1;
         int dummyMessageClient = (int) Math.pow(2, (Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes));
-        try {
-            ServerSocket serverSocket = new ServerSocket(port);
-        }
-        catch (Exception e){
-            System.out.println("Expection in Client Online");
-        }
+
 
         // Setting the private and public contexts for the BFV Homomorphic Encryption scheme
         EncryptionParameters parameters = getParameters();
@@ -249,7 +243,7 @@ public class PSIClient {
     }
 
     private Plaintext BFVVector(SealContext context, int[] plainQuery ){
-        // TODO make sure to use write numbers from parameters
+        // TODO make sure to use correct numbers from parameters
         BatchEncoder batchEncoder = new BatchEncoder(context);
 
         // Ensure the plainVec array is large enough to hold all batched data

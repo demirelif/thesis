@@ -13,6 +13,7 @@ import org.bouncycastle.math.ec.ECCurve;
 
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
+import util.OPRF;
 import util.PRF;
 import util.PSI.*;
 
@@ -137,32 +138,45 @@ public class SensingApplication extends Application {
         Decryptor decryptor = new Decryptor(context, keygen.secretKey());
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
-
         receivedMessagesClient.put(msg, msg.getReceiveTime());
     }
 
     /** Receives and saves the complete message list for the client */
     private void crowdCountingClient(Message msg){
         receivedMessagesClient.put(msg, msg.getReceiveTime());
+        //System.out.println(receivedMessagesClient.size());
+        if ( receivedMessagesClient.size() == 10 ){
+            clientOffline();
+        }
     }
 
     /** Receives and saves the complete message list for the server */
     private void crowdCountingServer(Message msg){
         receivedMessagesServer.put(msg, msg.getReceiveTime());
+        if (receivedMessagesServer.size() == 10 ){
+            serverOffline();
+        }
     }
 
     /** The preprocessing phase (OPRF, Batching) for the client */
     private void clientOffline(){
+        System.out.println("client offline");
         long t0 = System.currentTimeMillis();
         org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyClient.mod(ORDER_OF_GENERATOR));
         System.out.println("Client Point Precomputed: " + clientPointPrecomputed);
 
         // OPRF Layer: encoding the client's set as elliptic curve points
         for ( Message msg : receivedMessagesClient.keySet()){
-            encryptedMessagesClient.add(PRF.clientPRFOffline(msg.getId(), clientPointPrecomputed));
+            if ( msg != null ){
+                encryptedMessagesClient.add(OPRF.clientPRFOffline(msg.getId(), clientPointPrecomputed));
+            }
         }
         long t1 = System.currentTimeMillis();
         System.out.println("Client OFFLINE time: " + (t1 - t0) + " ms");
+        if ( encryptedMessagesClient.size() == 10 ){
+            System.out.println(encryptedMessagesClient);
+        }
+
     }
 
     /** The preprocessing phase (OPRF, Batching) for the server */
@@ -178,7 +192,7 @@ public class SensingApplication extends Application {
         }
 
         // Apply PRF to a set of server, using parallel computation
-        List<BigInteger> prfedServerSetList = PRF.serverPrfOfflineParallel(messageIDs, serverPointPrecomputed);
+        List<BigInteger> prfedServerSetList = OPRF.serverPrfOfflineParallel(messageIDs, serverPointPrecomputed);
         Set<BigInteger> prfedServerSet = new HashSet<>(prfedServerSetList);
         long t1 = System.currentTimeMillis();
 
@@ -218,8 +232,6 @@ public class SensingApplication extends Application {
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
     }
 
-
-    private void serverOnline(){}
 
     public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
         // use Vaikuntanathan
@@ -271,7 +283,7 @@ public class SensingApplication extends Application {
         for (Message msg : receivedMessagesServer.keySet()) {
            messageIDs.add(Integer.getInteger(msg.getId()));
         }
-        PSIClient psiClient = new PSIClient(messageIDs);
+        //PSIClient psiClient = new PSIClient(messageIDs);
 
     }
 

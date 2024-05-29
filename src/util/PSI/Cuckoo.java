@@ -93,8 +93,6 @@ public class Cuckoo {
 
     private static Long murmurHash3(String key, Long seed) {
         // TODO Implement MurmurHash3 or use an existing library
-        // This is a placeholder implementation
-        // Example: https://github.com/explosion/srsly/blob/master/srsly/_hash.pyx
         Long h = seed;
         for (char c : key.toCharArray()) {
             h = h * 31 + c;
