@@ -100,6 +100,7 @@ public class Message implements Comparable<Message> {
 
 	/**
 	 * Returns the ID of the message
+	 *
 	 * @return The message id
 	 */
 	public String getId() {

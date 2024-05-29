@@ -1,5 +1,6 @@
 package util.PSI;
 
+import core.Message;
 import edu.alibaba.mpc4j.crypto.fhe.*;
 import edu.alibaba.mpc4j.crypto.fhe.KeyGenerator;
 import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
@@ -12,6 +13,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Scanner;
 
@@ -22,6 +24,7 @@ import static util.PSI.AuxiliaryFunctions.windowing;
 public class PSIClient {
     private ArrayList<Integer> elements;
     private static int port = 4470;
+    private static final int modulusDegree = 64;
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
     Modulus plainModulus = new Modulus(1 << 6);
     private SealContext context;
@@ -34,7 +37,7 @@ public class PSIClient {
     InputStream inputStream;
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
-    protected PSIClient(ArrayList<Integer> elements) {
+    public PSIClient(ArrayList<Integer> elements) {
         this.elements = elements;
         try {
             client = new Socket("localhost", 4470);
@@ -45,7 +48,7 @@ public class PSIClient {
         }
     }
 
-    private void clientOnline(List<Long> messageIDs) throws IOException {
+    public void clientOnline(ArrayList<Integer> messageIDs) throws IOException {
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);
         int miniBinCaapacity = Parameters.BIN_CAPACITY / Parameters.ALPHA;
@@ -103,16 +106,28 @@ public class PSIClient {
             windowedItems.add( windowing( item, miniBinCaapacity, Parameters.PLAIN_MODULUS) );
         }
 
-        int[] plain_query = new int[windowedItems.size()];
-        int[][][] enc_query = new int[base - 1][logBELL][windowedItems.size()];
+        int[] plainQuery = new int[windowedItems.size()];
+        int[][][] encQuery = new int[base - 1][logBELL][windowedItems.size()];
 
+        EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
+        parms.setPolyModulusDegree(64);
+        //parms.setPlainModulus(plainModulus);
+        parms.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
+        // t must be a prime number and t mod 2n = 1, then we can us batch encode
+        parms.setPlainModulus(257);
+        SealContext context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
+
+        ArrayList<Plaintext> plaintexts = new ArrayList<>();
         // Create batched query to be sent to the server
         for (int j = 0; j < logBELL; j++) {
             for (int i = 0; i < base - 1; i++) {
                 if ((i + 1) * Math.pow(base, j) - 1 < miniBinCaapacity) {
                     for (int k = 0; k < windowedItems.size(); k++) {
-                        plain_query[k] = windowedItems.get(k)[i][j];
+                        plainQuery[k] = windowedItems.get(k)[i][j];
                     }
+                    Plaintext plaintext = BFVVector(context, plainQuery);
+                    plaintexts.add(plaintext);
+                    // encQuery[i][j] = BFVVector(context, plainQuery);
                     // Placeholder: Use appropriate method for creating BFV vector
                     // enc_query[i][j] = createBFVVector(privateContext, plain_query);
                 }
@@ -231,6 +246,32 @@ public class PSIClient {
         T obj = (T) objectInputStream.readObject();
         objectInputStream.close();
         return obj;
+    }
+
+    private Plaintext BFVVector(SealContext context, int[] plainQuery ){
+        // TODO make sure to use write numbers from parameters
+        BatchEncoder batchEncoder = new BatchEncoder(context);
+
+        // Ensure the plainVec array is large enough to hold all batched data
+        long[] plainVec = new long[batchEncoder.slotCount()];
+        for (int i = 0; i < plainVec.length && i < plainQuery.length; i++) {
+            plainVec[i] = plainQuery[i];
+        }
+
+        Plaintext plain = new Plaintext();
+        batchEncoder.encode(plainVec, plain);
+
+        Ciphertext encrypted = new Ciphertext();
+        keygen = new KeyGenerator(context);
+
+        PublicKey pk = new PublicKey();
+        keygen.createPublicKey(pk);
+
+        Encryptor encryptor = new Encryptor(context, pk);
+        Decryptor decryptor = new Decryptor(context, keygen.secretKey());
+        // Encryption - OPRFs
+        encryptor.encrypt(plain, encrypted);
+        return plain;
     }
 
 

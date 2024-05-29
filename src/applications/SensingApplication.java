@@ -2,6 +2,7 @@ package applications;
 
 import core.*;
 import edu.alibaba.mpc4j.crypto.fhe.*;
+import edu.alibaba.mpc4j.crypto.fhe.KeyGenerator;
 import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
 import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
@@ -13,11 +14,9 @@ import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
 import util.PRF;
-import util.PSI.AuxiliaryFunctions;
-import util.PSI.OPRF;
-import util.PSI.Parameters;
-import util.PSI.SimpleHash;
+import util.PSI.*;
 
+import java.io.IOException;
 import java.math.BigInteger;
 
 import java.net.ServerSocket;
@@ -266,11 +265,14 @@ public class SensingApplication extends Application {
     }
 
     @Override
-    public void update(DTNHost host) {
+    public void update(DTNHost host)  {
         Collection<Message> messages = host.getMessageCollection();
-        for (Message message : messages) {
-            // handle(message, host);
+        ArrayList<Integer> messageIDs = new ArrayList<>();
+        for (Message msg : receivedMessagesServer.keySet()) {
+           messageIDs.add(Integer.getInteger(msg.getId()));
         }
+        PSIClient psiClient = new PSIClient(messageIDs);
+
     }
 
     @Override
