@@ -11,11 +11,19 @@ public class PSI {
     }
 
     public void addPSIClient(PSIClient psiClient) {
-        this.psiClient = psiClient;
+        if ( this.psiClient == null ){
+            this.psiClient = psiClient;
+        } else {
+            System.out.println("Already have a PSI Client");
+        }
     }
 
     public void addPSIServer(PSIServer psiServer) {
-        this.psiServer = psiServer;
+        if ( this.psiServer == null ){
+            this.psiServer = psiServer;
+        } else {
+            System.out.println("Already have a PSI Server");
+        }
     }
 
     public void competeIntersection(){

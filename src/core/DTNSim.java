@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ui.DTNSimTextUI;
+import util.PSI.PSI;
 
 /**
  * Simulator's main class
@@ -24,8 +25,10 @@ public class DTNSim {
 	/** Name of the static method that all resettable classes must have
 	 * @see #registerForReset(String) */
 	public static final String RESET_METHOD_NAME = "reset";
+	private static final util.PSI.PSI PSI = new PSI();
 	/** List of class names that should be reset between batch runs */
 	private static List<Class<?>> resetList = new ArrayList<Class<?>>();
+
 
 	/**
 	 * Starts the user interface with given arguments.
@@ -91,6 +94,7 @@ public class DTNSim {
 			Settings.setRunIndex(guiIndex);
 			new DTNSimGUI().start();
 		}
+		PSI.competeIntersection();
 	}
 
 	/**
