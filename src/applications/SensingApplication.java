@@ -15,8 +15,10 @@ import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
 import util.OPRF;
 import util.PSI.*;
-import util.PSI.HelperFunctions.StringUtils;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 
 import java.util.*;
@@ -30,7 +32,7 @@ public class SensingApplication extends Application {
     public static final String PROBE_DEST_RANGE = "destinationRange";
     public static final String PROBE_SEED = "seed";
     public static final String PROBE_SIZE = "probeSize";
-
+    boolean neverBeenPRFed = true;
     public static final String APP_ID = "de.in.tum.SensingApplication";
 
     private double lastProbe = 0;
@@ -54,6 +56,8 @@ public class SensingApplication extends Application {
     Encryptor encryptor;
     Decryptor decryptor;
 
+    int counter = 0;
+
     // Defines the curve
     private static final ECCurve CURVE = new SecP256K1Curve();
 
@@ -73,7 +77,7 @@ public class SensingApplication extends Application {
     private final HashMap<Message, Double> receivedMessagesServer = new HashMap<>();
     private final HashMap<Message, Double> receivedMessagesClient = new HashMap<>();
 
-    /** The data structure to hold the MAC addresses of the received messages */
+    /** The data structure to hold the hashed MAC addresses of the received messages */
     private final List<Integer> MACAddressesServer = new ArrayList<>();
     private final List<Integer> MACAddressesClient = new ArrayList<>();
 
@@ -146,65 +150,65 @@ public class SensingApplication extends Application {
     /** Receives and saves the complete message list for the client */
     private void crowdCountingClient(Message msg){
         receivedMessagesClient.put(msg, msg.getReceiveTime());
-        if ( receivedMessagesClient.size() == 10 ){
-            clientOffline();
-            System.out.println(receivedMessagesClient);
-        }
+        MACAddressesClient.add(msg.getFrom().hashCode());
+        /**
+         *         if ( receivedMessagesClient.size() == 10 ){
+         *             clientOffline();
+         *         }
+         *         if ( receivedMessagesClient.size() > 10 && neverBeenPRFed ){
+         *             PSIClient.finalizeOPRF(OPRFClientKey, encryptedMessagesClient );
+         *             neverBeenPRFed = false;
+         *         }
+         * */
     }
 
     /** Receives and saves the complete message list for the server */
     private void crowdCountingServer(Message msg){
         receivedMessagesServer.put(msg, msg.getReceiveTime());
-        // TODO make sure that we are saving the right information
-        MACAddressesServer.add(StringUtils.getLastChar(msg.getId()));
-
-        // TODO change this to a realistic logic
-        if (receivedMessagesServer.size() == 10 ){
-            serverOffline();
-        }
+        MACAddressesServer.add(msg.getFrom().hashCode());
     }
 
     /** The preprocessing phase (OPRF, Batching) for the client */
     private void clientOffline(){
         System.out.println("client offline");
         long t0 = System.currentTimeMillis();
-        org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyClient.mod(ORDER_OF_GENERATOR));
-        System.out.println("Client Point Precomputed: " + clientPointPrecomputed);
+        org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
 
         // OPRF Layer: encoding the client's set as elliptic curve points
         for ( Message msg : receivedMessagesClient.keySet()){
             if ( msg != null ){
-                encryptedMessagesClient.add(OPRF.clientPRFOffline(msg.getId(), clientPointPrecomputed));
+                encryptedMessagesClient.add(OPRF.clientPRFOffline(String.valueOf(msg.getUniqueId()), clientPointPrecomputed));
             }
         }
-        long t1 = System.currentTimeMillis();
-        System.out.println("Client OFFLINE time: " + (t1 - t0) + " ms");
-        if ( encryptedMessagesClient.size() == 10 ){
-            System.out.println(encryptedMessagesClient);
+        // Serialize the list to a file
+        try (FileOutputStream fileOut = new FileOutputStream("client_preprocessed");
+             ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+            out.writeObject(encryptedMessagesClient);
+            System.out.println("done writing the encrypted messages");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
+        long t1 = System.currentTimeMillis();
+        System.out.println("Client OFFLINE time: " + (t1 - t0) + " ms");
     }
 
     /** The preprocessing phase (OPRF, Simple hashing, partitioning, finding the polynomials ) for the server */
     private void serverOffline(){
         long t0 = System.currentTimeMillis();
-        org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, secretKeyServer.mod(ORDER_OF_GENERATOR));
+        org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
 
-        System.out.println("server before  " + MACAddressesServer);
         // Apply PRF to a set of server, using parallel computation
         List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(MACAddressesServer, serverPointPrecomputed);
         Set<Integer> prfedServerSet = new HashSet<>(prfedServerSetList);
         long t1 = System.currentTimeMillis();
 
-        System.out.println(t1);
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         int dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE).intValue();
         int serverSize = MACAddressesServer.size();
         int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.OUTPUT_BITS;
-        System.out.println("minibin cap " + miniBinCapacity);
         int numberOfBins = (int) Math.pow(2, Parameters.OUTPUT_BITS);
 
-        System.out.println("set " + prfedServerSet);
         SimpleHash sh = new SimpleHash(Parameters.HASH_SEEDS);
         for ( int item: prfedServerSet){
             for ( int i = 0; i < Parameters.NUMBER_OF_HASHES; i++ ){
@@ -246,13 +250,9 @@ public class SensingApplication extends Application {
             poly_coeffs.add(coeffs_from_bin);
         }
 
-        System.out.println(poly_coeffs);
-
-        // pickle.dump( poly_coeffs, f);
-
         long t3 = System.currentTimeMillis();
 
-        // TODO this part is exteremely slow ~ 10s
+        // TODO this part is extremely slow ~ 10s
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
     }
 
@@ -282,19 +282,25 @@ public class SensingApplication extends Application {
         String type = (String) msg.getProperty("type");
         if (type == null) return msg; // Not a probe message
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
-            //  crowdCounting(msg, host);
-            // The message identifier
             String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
             Message m = new Message(host, msg.getFrom(), id, 1);
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
             msg.getTo().messageTransferred(msg.getId(), host);
 
-
-            if (msg.getTo().getRole().equals(SERVER)) {
+            if ( msg.getTo().getRole().equals(SERVER)){
                 crowdCountingServer(msg);
-            } else if (msg.getTo().getRole().equals(CLIENT)) { // TODO : fix -> For some reason there is no client
+            } else if ( msg.getTo().getRole().equals(CLIENT)){
                 crowdCountingClient(msg);
+            }
+            counter++;
+            if ( counter == 700 ){
+                if ( MACAddressesClient.size() > 0 ){
+                    PSIClient psiClient = new PSIClient(MACAddressesClient);
+                }
+                else if ( MACAddressesServer.size() > 0 ){
+                    PSIServer psiServer = new PSIServer(MACAddressesServer);
+                }
             }
         }
 

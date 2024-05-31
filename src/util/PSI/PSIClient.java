@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
 
 import static com.google.common.graph.Graphs.transpose;
 import static util.PSI.AuxiliaryFunctions.windowing;
@@ -31,32 +32,33 @@ public class PSIClient {
     private SealContext context;
     private KeyGenerator keygen;
     private PublicKey pk;
+    private List<Integer> stream;
     Encryptor encryptor;
     Decryptor decryptor;
-    Socket client;
     OutputStream outputStream;
     InputStream inputStream;
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
-    public PSIClient(ArrayList<Integer> elements) {
-        this.elements = elements;
-        try {
-            client = new Socket("localhost", 4470);
-            inputStream = client.getInputStream();
-            outputStream = client.getOutputStream();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public PSIClient(List<Integer> stream) {
+        this.stream = stream;
     }
 
     /** Applying inverse of the secret key, OPRFClientKey */
-    public void finalizeOPRF(BigInteger OPRFClientKey){
+    public static void finalizeOPRF(BigInteger OPRFClientKey, List<List<BigInteger>> PRFedEncodedClientSet ) {
         // Computing the inverse of the secret key
         BigInteger keyInverse = OPRFClientKey.modInverse( OPRF.getOrderOfGenerator() );
-
-        // Perform PRF processing
+        try {
+            List<BigInteger> PRFedClientSet = OPRF.clientPrfOnlineParallel(keyInverse, PRFedEncodedClientSet);
+            System.out.println("OPRF protocol done");
+        } catch (Exception e ){
+            System.err.println(e);
+            System.out.println("OPRF protocol failed");
+        }
     }
 
+    public List<Integer> getStream(){
+        return this.stream;
+    }
     public void clientOnline(ArrayList<Integer> messageIDs) throws IOException {
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);
@@ -277,6 +279,4 @@ public class PSIClient {
         encryptor.encrypt(plain, encrypted);
         return plain;
     }
-
-
 }

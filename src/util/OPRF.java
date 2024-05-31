@@ -3,8 +3,6 @@ package util;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
-import util.PSI.Pair;
-import util.PSI.Parameters;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -13,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.*;
 
 public class OPRF {
-    private static final int NUMBER_OF_PROCESSES = 5;
+    private static final int NUMBER_OF_PROCESSES = 3;
     public static final int SIGMA_MAX = Parameters.SIGMA_MAX;
     public static final BigInteger MASK = BigInteger.valueOf((2L * SIGMA_MAX) - 1);
 
@@ -29,15 +27,13 @@ public class OPRF {
     );
 
     public static List<BigInteger> clientPRFOffline(String msgID, ECPoint point) {
-        // TODO change this to the actual id
         BigInteger msgBigIntID = new BigInteger(msgID);
         ECPoint P = point.multiply(msgBigIntID);
         // Extract the x and y coordinates of the resulting point
-        BigInteger xItem = P.getAffineXCoord().toBigInteger();
-        BigInteger yItem = P.getAffineYCoord().toBigInteger();
-
+        int xItem = P.getXCoord().bitLength();
+        int yItem = P.getYCoord().bitLength();
         // Return the coordinates as a list
-        return Arrays.asList(xItem, yItem);
+        return Arrays.asList(new BigInteger(String.valueOf(xItem)), new BigInteger(String.valueOf(yItem)));
     }
 
     public static List<Integer> serverPrfOffline(List<Integer> vectorOfItems, ECPoint point) {
@@ -97,64 +93,61 @@ public class OPRF {
         return finalOutput;
     }
 
-    public static List<BigInteger> clientPrfOnlineParallel(BigInteger keyInverse, List<BigInteger> vectorOfPairs) {
-        int numberOfPairs = vectorOfPairs.size();
-        int division = numberOfPairs / NUMBER_OF_PROCESSES;
-        List<List<BigInteger>> inputs = new ArrayList<>();
 
-        for (int i = 0; i < NUMBER_OF_PROCESSES; i++) {
-            int start = i * division;
-            int end = (i + 1) * division;
-            inputs.add(vectorOfPairs.subList(start, end));
-        }
-
-        if (numberOfPairs % NUMBER_OF_PROCESSES != 0) {
-            inputs.add(vectorOfPairs.subList(NUMBER_OF_PROCESSES * division, numberOfPairs));
-        }
-
-        ExecutorService executor = Executors.newFixedThreadPool(NUMBER_OF_PROCESSES);
-        List<Future<List<BigInteger>>> futures = new ArrayList<>();
-
-        for (List<BigInteger> input : inputs) {
-           // Callable<List<BigInteger>> task = () -> clientPrfOnline(keyInverse, (List<BigInteger[]>) input);
-           // futures.add(executor.submit(task));
-        }
-
-        List<BigInteger> finalOutput = new ArrayList<>();
-        try {
-            for (Future<List<BigInteger>> future : futures) {
-                finalOutput.addAll(future.get());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            executor.shutdown();
-        }
-
-        return finalOutput;
-    }
-    public static List<BigInteger> clientPrfOnline(BigInteger keyInverse, List<BigInteger[]> vectorOfPairs) {
+    public static List<BigInteger> clientPrfOnline(BigInteger keyInverse, List<List<BigInteger>> vectorOfPairs) {
         List<ECPoint> vectorOfPoints = new ArrayList<>();
-        for (BigInteger[] pair : vectorOfPairs) {
-            ECPoint point = CURVE_USED.createPoint(pair[0], pair[1]);
+        for (List<BigInteger> pair : vectorOfPairs) {
+            ECPoint point = CURVE_USED.createPoint(pair.get(0), pair.get(1));
             vectorOfPoints.add(point);
         }
 
         List<ECPoint> vectorKeyInversePoints = new ArrayList<>();
         for (ECPoint point : vectorOfPoints) {
+            System.out.println("-- " + point.toString());
             ECPoint resultPoint = point.multiply(keyInverse);
+            System.out.println(resultPoint);
             vectorKeyInversePoints.add(resultPoint);
         }
 
         List<BigInteger> output = new ArrayList<>();
         for (ECPoint point : vectorKeyInversePoints) {
             BigInteger x = point.getAffineXCoord().toBigInteger();
-            BigInteger processedValue = (x.shiftRight(logP - SIGMA_MAX - 10)).and(MASK);
+            BigInteger processedValue = x.shiftRight(logP - SIGMA_MAX - 10).and(MASK);
             output.add(processedValue);
         }
 
         return output;
     }
+
+    public static List<BigInteger> clientPrfOnlineParallel(BigInteger keyInverse, List<List<BigInteger>> vectorOfPairs) throws InterruptedException, ExecutionException {
+        int division = vectorOfPairs.size() / NUMBER_OF_PROCESSES;
+        List<List<List<BigInteger>>> inputs = new ArrayList<>();
+
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++) {
+            inputs.add(new ArrayList<>(vectorOfPairs.subList(i * division, (i + 1) * division)));
+        }
+
+        if (vectorOfPairs.size() % NUMBER_OF_PROCESSES != 0) {
+            inputs.add(new ArrayList<>(vectorOfPairs.subList(NUMBER_OF_PROCESSES * division, vectorOfPairs.size())));
+        }
+
+        List<Callable<List<BigInteger>>> tasks = new ArrayList<>();
+        for (List<List<BigInteger>> input : inputs) {
+            tasks.add(() -> clientPrfOnline(keyInverse, input));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(NUMBER_OF_PROCESSES);
+        List<Future<List<BigInteger>>> futures = executor.invokeAll(tasks);
+
+        List<BigInteger> finalOutput = new ArrayList<>();
+        for (Future<List<BigInteger>> future : futures) {
+            finalOutput.addAll(future.get());
+        }
+
+        executor.shutdown();
+        return finalOutput;
+    }
+
     public static java.math.BigInteger getOrderOfGenerator() {
         return orderOfGenerator;
     }

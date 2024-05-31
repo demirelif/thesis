@@ -3,8 +3,6 @@ package util;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
-import util.PSI.Pair;
-import util.PSI.Parameters;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

@@ -7,6 +7,7 @@ package core;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import movement.MovementModel;
 import movement.Path;
@@ -86,11 +87,11 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.path = null;
 
 
-		// assign receiver or sender roles to the sensor nodes:
-		if ( address == 6 ){
+		// TODO: currently we have the node 5 as the receiver / client, and 3 and 4 as sender / server
+		if ( address == 5 ){
 			this.role = "receiver";
 		}
-		else if ( address == 3 || address == 5 || address == 4 ){
+		else if ( address == 3 || address == 4 ){
 			this.role = "sender";
 		}
 
