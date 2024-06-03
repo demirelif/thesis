@@ -94,7 +94,6 @@ public class DTNSim {
 			Settings.setRunIndex(guiIndex);
 			new DTNSimGUI().start();
 		}
-		PSI.competeIntersection();
 	}
 
 	/**

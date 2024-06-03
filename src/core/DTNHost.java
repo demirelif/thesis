@@ -12,6 +12,7 @@ import java.util.Set;
 import movement.MovementModel;
 import movement.Path;
 import routing.MessageRouter;
+import routing.PassiveRouter;
 import routing.util.RoutingInfo;
 
 import static core.Constants.DEBUG;
@@ -27,6 +28,7 @@ public class DTNHost implements Comparable<DTNHost> {
 	private Coord destination;	// where is it going
 
 	private MessageRouter router;
+	private PassiveRouter passiveRouter;
 	private MovementModel movement;
 	private Path path;
 	private double speed;
@@ -80,6 +82,8 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.movement.setComBus(comBus);
 		this.movement.setHost(this);
 		setRouter(mRouterProto.replicate());
+		Settings settings = new Settings();
+		this.passiveRouter = new PassiveRouter(settings);
 
 		this.location = movement.getInitialLocation();
 
@@ -87,12 +91,14 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.path = null;
 
 
-		// TODO: currently we have the node 5 as the receiver / client, and 3 and 4 as sender / server
-		if ( address == 5 ){
+		// TODO: currently we have the node 5 as the receiver / client, and 3 as the sender / server
+		if ( address == 4 ){
 			this.role = "receiver";
 		}
-		else if ( address == 3 || address == 4 ){
+		else if ( address == 3 ){
 			this.role = "sender";
+		} else {
+			this.role = "default";
 		}
 
 		if (movLs != null) { // inform movement listeners about the location

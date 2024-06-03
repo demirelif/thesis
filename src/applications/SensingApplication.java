@@ -19,7 +19,11 @@ import util.PSI.*;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.Array;
 import java.math.BigInteger;
+
+// TODO should I use this ?
+import core.SimScenario;
 
 import java.util.*;
 
@@ -35,6 +39,8 @@ public class SensingApplication extends Application {
     boolean neverBeenPRFed = true;
     public static final String APP_ID = "de.in.tum.SensingApplication";
 
+    public List<DTNHost> hosts = new ArrayList<>();
+
     private double lastProbe = 0;
     private double interval = 10;
     private int seed = 0;
@@ -43,6 +49,7 @@ public class SensingApplication extends Application {
     private int probeSize = 1;
     private int pongSize = 1;
     private Random rng;
+    private DTNHost dtnHost = null;
 
     private double timeInterval = 120;
     private double timeIntervalIncrease = 10;
@@ -81,6 +88,7 @@ public class SensingApplication extends Application {
     private final List<Integer> MACAddressesServer = new ArrayList<>();
     private final List<Integer> MACAddressesClient = new ArrayList<>();
 
+    private final int[] dummyAddresses = {1,2,3,4};
     private final List<Message> encryptedMessagesServer = new ArrayList<>();
     private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
 
@@ -279,6 +287,23 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
+        if ( msg.getId().equals("probe-encrypted-message")){
+            //System.out.println("from " + msg.getFrom() + " to " + msg.getTo() + " host " + host);
+            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() ){
+                System.out.println("from " + msg.getFrom().getAddress() + " to " + msg.getTo().getAddress());
+                System.out.println(msg.getProperty("body").toString());
+                // Doing PSI
+                PSIServer psiServer = new PSIServer(MACAddressesServer);
+                PSIClient psiClient = new PSIClient((List<Integer>) msg.getProperty("body"));
+                PSI psi = new PSI();
+                psi.addPSIClient(psiClient);
+                psi.addPSIServer(psiServer);
+                psi.competeIntersection();
+
+                // psiServer
+            }
+        }
+
         String type = (String) msg.getProperty("type");
         if (type == null) return msg; // Not a probe message
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
@@ -288,25 +313,21 @@ public class SensingApplication extends Application {
             m.setAppID(APP_ID);
             msg.getTo().messageTransferred(msg.getId(), host);
 
+            if ( msg.getTo().getAddress() == 3 ){
+                dtnHost = host;
+            }
             if ( msg.getTo().getRole().equals(SERVER)){
                 crowdCountingServer(msg);
+                dtnHost = msg.getTo();
             } else if ( msg.getTo().getRole().equals(CLIENT)){
                 crowdCountingClient(msg);
-            }
-            counter++;
-            if ( counter == 700 ){
-                if ( MACAddressesClient.size() > 0 ){
-                    PSIClient psiClient = new PSIClient(MACAddressesClient);
-                }
-                else if ( MACAddressesServer.size() > 0 ){
-                    PSIServer psiServer = new PSIServer(MACAddressesServer);
-                }
+                dtnHost = msg.getTo();
             }
         }
 
         return msg;
     }
-
+// Client icin 5 server icin 3
     @Override
     public void update(DTNHost host)  {
         Collection<Message> messages = host.getMessageCollection();
@@ -315,6 +336,52 @@ public class SensingApplication extends Application {
            messageIDs.add(Integer.getInteger(msg.getId()));
         }
         //PSIClient psiClient = new PSIClient(messageIDs);
+        counter++;
+
+        //System.out.println("server set " + MACAddressesServer.size() + " counter " + counter);
+        // Sending to sensor 3
+        if ( dtnHost != null && (counter > 700 && counter < 900) ){
+            String msgId = "encrypted-message";
+            Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
+                if (!MACAddressesClient.isEmpty()){
+
+                    PSIClient psiClient = new PSIClient(MACAddressesClient);
+                   // PSIServer psiServer = new PSIServer(MACAddressesServer);
+                   // host.createNewMessage(encryptedMessage);
+                   // DTNHost sendTo = SimScenario.getInstance().getHosts().get(3);
+                   // host.sendMessage(msgId, sendTo);
+
+                     // Create message
+                    DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
+                    Message m = new Message(host, receiver, "probe" + "-" +
+                            msgId,
+                            MACAddressesClient.size()*8);
+                    m.addProperty("type", "probe");
+                    m.addProperty("body", MACAddressesClient);
+                    m.setAppID(APP_ID);
+                    host.createNewMessage(m);
+                    host.sendMessage(m.getId(), receiver);
+
+
+                    // Call listeners
+                    super.sendEventToListeners("ProbeSent", null, host);
+
+                }
+
+            else if (!MACAddressesServer.isEmpty()){
+               // System.out.println(MACAddressesServer.size());
+                if ( MACAddressesServer.size() == 99 ){
+                   // System.out.println(host.receiveMessage(encryptedMessage, dtnHost));
+                   // DTNHost getFrom = SimScenario.getInstance().getHosts().get(4);
+                    //host.messageTransferred(msgId, dtnHost);
+                   // host.getPath();
+                    //host.receiveMessage(encryptedMessage, dtnHost);
+                    //System.out.println("Received " + encryptedMessage);
+                    //System.out.println(encryptedMessage.getProperty("body"));
+                }
+            }
+        }
+
 
     }
 
