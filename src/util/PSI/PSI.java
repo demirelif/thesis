@@ -33,7 +33,7 @@ public class PSI {
         else {
             System.out.println("Client has " + psiClient.getStream().size() + " MAC addresses");
             System.out.println("Server has " + psiServer.getStream().size() + " MAC addresses");
-            // now we have the data set, let's find the intersection
+
             Set<Integer> intersection = new HashSet<>(psiClient.getStream());
             intersection.retainAll(psiServer.getStream());
             System.out.println(intersection);
