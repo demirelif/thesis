@@ -39,17 +39,25 @@ public class PSIClient {
     InputStream inputStream;
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
-    public PSIClient(List<Integer> stream) {
+    List<List<BigInteger>> encryptedStream;
+    public PSIClient() {
+
+    }
+
+    public void addStream(List<Integer> stream){
         this.stream = stream;
     }
 
+    public void addEncryptedStream(List<List<BigInteger>> stream){
+this.encryptedStream = stream;
+    }
     /** Applying inverse of the secret key, OPRFClientKey */
-    public static void finalizeOPRF(BigInteger OPRFClientKey, List<List<BigInteger>> PRFedEncodedClientSet ) {
+    public void finalizeOPRF(BigInteger OPRFClientKey, List<List<BigInteger>> PRFedEncodedClientSet ) {
         // Computing the inverse of the secret key
         BigInteger keyInverse = OPRFClientKey.modInverse( OPRF.getOrderOfGenerator() );
         try {
             List<BigInteger> PRFedClientSet = OPRF.clientPrfOnlineParallel(keyInverse, PRFedEncodedClientSet);
-            System.out.println("OPRF protocol done");
+            System.out.println("OPRF protocol successful");
         } catch (Exception e ){
             System.err.println(e);
             System.out.println("OPRF protocol failed");
@@ -58,6 +66,10 @@ public class PSIClient {
 
     public List<Integer> getStream(){
         return this.stream;
+    }
+
+    public List<List<BigInteger>> getEncryptedStream(){
+        return this.encryptedStream;
     }
     public void clientOnline(ArrayList<Integer> messageIDs) throws IOException {
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;

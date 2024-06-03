@@ -91,7 +91,6 @@ public class OPRF {
             executor.shutdown();
         }
 
-        System.out.println("ServerPRFOffline: " + finalOutput);
         return finalOutput;
     }
 

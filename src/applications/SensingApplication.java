@@ -31,6 +31,7 @@ public class SensingApplication extends Application {
     public static final String SERVER = "sender";
     public static final String CLIENT = "receiver";
     private String role;
+    private final boolean USE_ENCRYPTION = true;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
@@ -89,7 +90,7 @@ public class SensingApplication extends Application {
     private final List<Integer> MACAddressesClient = new ArrayList<>();
 
     private final int[] dummyAddresses = {1,2,3,4};
-    private final List<Message> encryptedMessagesServer = new ArrayList<>();
+    private final List<List<BigInteger>> encryptedMessagesServer = new ArrayList<>();
     private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
 
     public SensingApplication(Settings s) {
@@ -174,11 +175,11 @@ public class SensingApplication extends Application {
     private void crowdCountingServer(Message msg){
         receivedMessagesServer.put(msg, msg.getReceiveTime());
         MACAddressesServer.add(msg.getFrom().hashCode());
+
     }
 
     /** The preprocessing phase (OPRF, Batching) for the client */
     private void clientOffline(){
-        long t0 = System.currentTimeMillis();
         org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
 
         // OPRF Layer: encoding the client's set as elliptic curve points
@@ -187,16 +188,18 @@ public class SensingApplication extends Application {
                 encryptedMessagesClient.add(OPRF.clientPRFOffline(String.valueOf(msg.getUniqueId()), clientPointPrecomputed));
             }
         }
-        // Serialize the list to a file
-        try (FileOutputStream fileOut = new FileOutputStream("client_preprocessed");
-             ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-            out.writeObject(encryptedMessagesClient);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        this.update(dtnHost);
 
-        long t1 = System.currentTimeMillis();
-        System.out.println("Client OFFLINE time: " + (t1 - t0) + " ms");
+        System.out.println("Client offline");
+        System.out.println(encryptedMessagesClient.size());
+        /**
+         *         try (FileOutputStream fileOut = new FileOutputStream("client_preprocessed");
+         *              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+         *             out.writeObject(encryptedMessagesClient);
+         *         } catch (IOException e) {
+         *             e.printStackTrace();
+         *         }
+         */
     }
 
     /** The preprocessing phase (OPRF, Simple hashing, partitioning, finding the polynomials ) for the server */
@@ -287,14 +290,34 @@ public class SensingApplication extends Application {
     public Message handle(Message msg, DTNHost host) {
         if ( msg.getId().equals("probe-encrypted-message")){
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() ){
-                // Doing PSI
-                PSIServer psiServer = new PSIServer(MACAddressesServer);
-                PSIClient psiClient = new PSIClient((List<Integer>) msg.getProperty("body"));
-                PSI psi = new PSI();
-                psi.addPSIClient(psiClient);
-                psi.addPSIServer(psiServer);
-                psi.competeIntersection();
+                if ( USE_ENCRYPTION ){
+                    PSIServer psiServer = new PSIServer();
+                    psiServer.addStream(MACAddressesServer);
+                    psiServer.serverOffline();
+
+                   // psiServer.addEncryptedStream(encryptedMessagesServer);
+                    PSIClient psiClient = new PSIClient();
+                    psiClient.addEncryptedStream((List<List<BigInteger>>) msg.getProperty("body"));
+
+                    psiClient.finalizeOPRF(OPRFClientKey, encryptedMessagesClient );
+
+                    PSI psi = new PSI();
+                    psi.addPSIClient(psiClient);
+                    psi.addPSIServer(psiServer);
+                    psi.competeIntersection();
+                } else {
+                    // Doing PSI
+                    PSIServer psiServer = new PSIServer();
+                    psiServer.addStream(MACAddressesServer);
+                    PSIClient psiClient = new PSIClient();
+                    psiClient.addStream((List<Integer>) msg.getProperty("body"));
+                    PSI psi = new PSI();
+                    psi.addPSIClient(psiClient);
+                    psi.addPSIServer(psiServer);
+                    psi.competeIntersection();
+                }
             }
+
         }
 
         String type = (String) msg.getProperty("type");
@@ -320,7 +343,7 @@ public class SensingApplication extends Application {
 
         return msg;
     }
-// Client icin 5 server icin 3
+
     @Override
     public void update(DTNHost host)  {
         Collection<Message> messages = host.getMessageCollection();
@@ -333,8 +356,7 @@ public class SensingApplication extends Application {
         if ( dtnHost != null && (counter > 700 && counter < 900) ){
             String msgId = "encrypted-message";
             Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
-                if (!MACAddressesClient.isEmpty()){
-                    // Create message
+                if (!MACAddressesClient.isEmpty() && !USE_ENCRYPTION){
                     DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
                     Message m = new Message(host, receiver, "probe" + "-" +
                             msgId,
@@ -346,7 +368,24 @@ public class SensingApplication extends Application {
                     host.sendMessage(m.getId(), receiver);
                     // Call listeners
                     super.sendEventToListeners("ProbeSent", null, host);
+                }
+                if ( !MACAddressesClient.isEmpty() && USE_ENCRYPTION){
+                    clientOffline();
+                    DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
+                    Message m = new Message(host, receiver, "probe" + "-" +
+                            msgId,
+                            encryptedMessagesClient.size()*8);
+                    m.addProperty("type", "probe");
+                    m.addProperty("body", encryptedMessagesClient);
+                    m.setAppID(APP_ID);
+                    host.createNewMessage(m);
+                    host.sendMessage(m.getId(), receiver);
+                    // Call listeners
+                    super.sendEventToListeners("ProbeSent", null, host);
+                }
 
+                if ( MACAddressesServer.size() == 295 && USE_ENCRYPTION){
+                    //serverOffline();
                 }
         }
 
