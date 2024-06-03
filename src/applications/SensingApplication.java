@@ -178,7 +178,6 @@ public class SensingApplication extends Application {
 
     /** The preprocessing phase (OPRF, Batching) for the client */
     private void clientOffline(){
-        System.out.println("client offline");
         long t0 = System.currentTimeMillis();
         org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
 
@@ -192,7 +191,6 @@ public class SensingApplication extends Application {
         try (FileOutputStream fileOut = new FileOutputStream("client_preprocessed");
              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
             out.writeObject(encryptedMessagesClient);
-            System.out.println("done writing the encrypted messages");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -288,10 +286,7 @@ public class SensingApplication extends Application {
     @Override
     public Message handle(Message msg, DTNHost host) {
         if ( msg.getId().equals("probe-encrypted-message")){
-            //System.out.println("from " + msg.getFrom() + " to " + msg.getTo() + " host " + host);
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() ){
-                System.out.println("from " + msg.getFrom().getAddress() + " to " + msg.getTo().getAddress());
-                System.out.println(msg.getProperty("body").toString());
                 // Doing PSI
                 PSIServer psiServer = new PSIServer(MACAddressesServer);
                 PSIClient psiClient = new PSIClient((List<Integer>) msg.getProperty("body"));
@@ -299,8 +294,6 @@ public class SensingApplication extends Application {
                 psi.addPSIClient(psiClient);
                 psi.addPSIServer(psiServer);
                 psi.competeIntersection();
-
-                // psiServer
             }
         }
 
@@ -335,23 +328,13 @@ public class SensingApplication extends Application {
         for (Message msg : receivedMessagesServer.keySet()) {
            messageIDs.add(Integer.getInteger(msg.getId()));
         }
-        //PSIClient psiClient = new PSIClient(messageIDs);
-        counter++;
 
-        //System.out.println("server set " + MACAddressesServer.size() + " counter " + counter);
-        // Sending to sensor 3
+        counter++;
         if ( dtnHost != null && (counter > 700 && counter < 900) ){
             String msgId = "encrypted-message";
             Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
                 if (!MACAddressesClient.isEmpty()){
-
-                    PSIClient psiClient = new PSIClient(MACAddressesClient);
-                   // PSIServer psiServer = new PSIServer(MACAddressesServer);
-                   // host.createNewMessage(encryptedMessage);
-                   // DTNHost sendTo = SimScenario.getInstance().getHosts().get(3);
-                   // host.sendMessage(msgId, sendTo);
-
-                     // Create message
+                    // Create message
                     DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
                     Message m = new Message(host, receiver, "probe" + "-" +
                             msgId,
@@ -361,25 +344,10 @@ public class SensingApplication extends Application {
                     m.setAppID(APP_ID);
                     host.createNewMessage(m);
                     host.sendMessage(m.getId(), receiver);
-
-
                     // Call listeners
                     super.sendEventToListeners("ProbeSent", null, host);
 
                 }
-
-            else if (!MACAddressesServer.isEmpty()){
-               // System.out.println(MACAddressesServer.size());
-                if ( MACAddressesServer.size() == 99 ){
-                   // System.out.println(host.receiveMessage(encryptedMessage, dtnHost));
-                   // DTNHost getFrom = SimScenario.getInstance().getHosts().get(4);
-                    //host.messageTransferred(msgId, dtnHost);
-                   // host.getPath();
-                    //host.receiveMessage(encryptedMessage, dtnHost);
-                    //System.out.println("Received " + encryptedMessage);
-                    //System.out.println(encryptedMessage.getProperty("body"));
-                }
-            }
         }
 
 
