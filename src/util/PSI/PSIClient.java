@@ -58,6 +58,7 @@ this.encryptedStream = stream;
         try {
             List<BigInteger> PRFedClientSet = OPRF.clientPrfOnlineParallel(keyInverse, PRFedEncodedClientSet);
             System.out.println("OPRF protocol successful");
+            System.out.println("keyInverse: " + keyInverse);
         } catch (Exception e ){
             System.err.println(e);
             System.out.println("OPRF protocol failed");

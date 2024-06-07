@@ -39,6 +39,7 @@ public class PSIServer {
     public void addEncryptedStream( List<List<BigInteger>> stream ){
         this.encryptedStream = stream;
     }
+
     private void ServerOnline(){
         double logNoOfHashes = Math.log(Parameters.NUMBER_OF_HASHES) / Math.log(2) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);

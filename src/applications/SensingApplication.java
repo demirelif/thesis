@@ -304,7 +304,7 @@ public class SensingApplication extends Application {
                     PSI psi = new PSI();
                     psi.addPSIClient(psiClient);
                     psi.addPSIServer(psiServer);
-                    psi.competeIntersection();
+                    psi.competeEncryptedIntersection();
                 } else {
                     // Doing PSI
                     PSIServer psiServer = new PSIServer();

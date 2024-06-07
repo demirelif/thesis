@@ -34,25 +34,30 @@ public class PSI {
             System.err.println("PSIClient or PSIServer is null");
         }
         else {
-            if ( USE_ENCRYPTION ){
-                System.out.println("Client has " + psiClient.getEncryptedStream().size() + " MAC addresses");
-                System.out.println("Server has " + psiServer.getEncryptedStream().size() + " MAC addresses");
-
-                Set<List<BigInteger>> intersection = new HashSet<>(psiClient.getEncryptedStream());
-                intersection.retainAll(psiServer.getEncryptedStream());
-                System.out.println(intersection);
-                System.out.println("The total number of unique nodes " + intersection.size());
-            }
-            else {
                 System.out.println("Client has " + psiClient.getStream().size() + " MAC addresses");
                 System.out.println("Server has " + psiServer.getStream().size() + " MAC addresses");
 
                 Set<Integer> intersection = new HashSet<>(psiClient.getStream());
                 intersection.retainAll(psiServer.getStream());
-                System.out.println(intersection);
                 System.out.println("The total number of unique nodes " + intersection.size());
             }
+    }
 
+    public void competeEncryptedIntersection(){
+        if ( psiClient == null || psiServer == null){
+            System.err.println("PSIClient or PSIServer is null");
+            return;
         }
+        System.out.println("Client has " + psiClient.getEncryptedStream().size() + " MAC addresses");
+        System.out.println("Server has " + psiServer.getEncryptedStream().size() + " MAC addresses");
+
+        System.out.println("Sigma-MAX from client " + psiClient.getEncryptedStream().get(0));
+        System.out.println("Sigma-MAX from server " + psiServer.getEncryptedStream().get(0));
+
+        Set<List<BigInteger>> intersection = new HashSet<>(psiClient.getEncryptedStream());
+        intersection.retainAll(psiServer.getEncryptedStream());
+        System.out.println(intersection);
+        System.out.println("The total number of unique nodes " + intersection.size());
+
     }
 }
