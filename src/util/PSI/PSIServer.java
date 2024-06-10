@@ -46,6 +46,14 @@ public class PSIServer {
         int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.ALPHA;
         double log2 = Math.log(miniBinCapacity) / Math.log(2);
         int logBELL = (int) ( log2 + 1 );
+
+        if ( encryptedStream == null || encryptedStream.size() == 0 ){
+            System.err.println("No encrypted stream found for the server");
+            return;
+        }
+
+      //  RealMatrix transposedPolyCoeffs = MatrixUtils.createRealMatrix(polyCoeffs).transpose();
+
     }
 
     public List<Integer> getStream(){

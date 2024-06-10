@@ -31,7 +31,7 @@ public class SensingApplication extends Application {
     public static final String SERVER = "sender";
     public static final String CLIENT = "receiver";
     private String role;
-    private final boolean USE_ENCRYPTION = true;
+    private final boolean USE_ENCRYPTION = false;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
@@ -327,7 +327,6 @@ public class SensingApplication extends Application {
             Message m = new Message(host, msg.getFrom(), id, 1);
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
-            msg.getTo().messageTransferred(msg.getId(), host);
 
             if ( msg.getTo().getAddress() == 3 ){
                 dtnHost = host;

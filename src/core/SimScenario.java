@@ -15,6 +15,7 @@ import movement.MapBasedMovement;
 import movement.MovementModel;
 import movement.map.SimMap;
 import routing.MessageRouter;
+import routing.ProbeRouter;
 
 /**
  * A simulation scenario used for getting and storing the settings of a
