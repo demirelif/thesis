@@ -129,6 +129,7 @@ public class ProbingApplication extends Application {
 		if (type == null) return msg; // Not a probe message
 		if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
 
+
 			/**
 			 *  placeholder for the actual processing of the received probe
 			 */

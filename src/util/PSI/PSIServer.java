@@ -6,12 +6,15 @@ import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
 import util.OPRF;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.io.ByteArrayOutputStream;
+import static util.OPRF.serverPrfOnlineParallel;
 
 // Performs simple hashing
 public class PSIServer {
@@ -40,19 +43,39 @@ public class PSIServer {
         this.encryptedStream = stream;
     }
 
-    private void ServerOnline(){
+    public void serverOnline(List<List<BigInteger>> stream){
         double logNoOfHashes = Math.log(Parameters.NUMBER_OF_HASHES) / Math.log(2) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);
         int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.ALPHA;
         double log2 = Math.log(miniBinCapacity) / Math.log(2);
         int logBELL = (int) ( log2 + 1 );
+        int L;
 
         if ( encryptedStream == null || encryptedStream.size() == 0 ){
             System.err.println("No encrypted stream found for the server");
             return;
         }
+        if ( stream == null || stream.size() == 0 ){
+            System.err.println("No stream found for the client");
+            return;
+        }
+        L = stream.size();
+        long t0 = System.currentTimeMillis();
+        List<ECPoint> PRFedEncodedClientSet = new ArrayList<>();
+        try {
+            PRFedEncodedClientSet = serverPrfOnlineParallel(OPRFServerKey, stream);
+        } catch (Exception e){
+            System.err.println("Error in creating server stream " + e.getMessage());
+        }
 
-      //  RealMatrix transposedPolyCoeffs = MatrixUtils.createRealMatrix(polyCoeffs).transpose();
+
+        byte[] PRFedEncodedClientSetSerialized = serialize(PRFedEncodedClientSet);
+        L = PRFedEncodedClientSetSerialized.length;
+        System.out.println(" * OPRF layer done!");
+        long t1 = System.currentTimeMillis();
+
+
+        //  RealMatrix transposedPolyCoeffs = MatrixUtils.createRealMatrix(polyCoeffs).transpose();
 
     }
 
@@ -70,7 +93,7 @@ public class PSIServer {
             return;
         }
         long t0 = System.currentTimeMillis();
-        org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
+        ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
 
         // Apply PRF to a set of server, using parallel computation
         List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(stream, serverPointPrecomputed);
@@ -131,5 +154,16 @@ public class PSIServer {
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
     }
 
+
+    public static byte[] serialize(List<ECPoint> list) {
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
+            oos.writeObject(list);
+            return bos.toByteArray();
+        } catch (IOException e) {
+            System.err.println("Serialization error");
+            return null;
+        }
+    }
 
 }

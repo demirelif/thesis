@@ -94,7 +94,53 @@ public class OPRF {
         return finalOutput;
     }
 
+    public static List<ECPoint> serverPrfOnlineParallel(BigInteger keyInverse, List<List<BigInteger>> vectorOfPairs) throws ExecutionException, InterruptedException {
+        List<ECPoint> vectorOfPoints = new ArrayList<>();
+        for (List<BigInteger> pair : vectorOfPairs) {
+            ECPoint point = CURVE_USED.createPoint(pair.get(0), pair.get(1));
+            vectorOfPoints.add(point);
+        }
 
+        int division = vectorOfPoints.size() / NUMBER_OF_PROCESSES;
+        List<List<ECPoint>> inputs = new ArrayList<>();
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++) {
+            inputs.add(new ArrayList<>(vectorOfPoints.subList(i * division, Math.min((i + 1) * division, vectorOfPoints.size()))));
+        }
+
+        if (vectorOfPoints.size() % NUMBER_OF_PROCESSES != 0) {
+            inputs.add(new ArrayList<>(vectorOfPoints.subList(NUMBER_OF_PROCESSES * division, vectorOfPoints.size())));
+        }
+
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_PROCESSES);
+        List<Future<List<ECPoint>>> futures = new ArrayList<>();
+
+        for (List<ECPoint> input : inputs) {
+            Callable<List<ECPoint>> task = () -> {
+                List<ECPoint> result = new ArrayList<>();
+                for (ECPoint point : input) {
+                    result.add(point.multiply(keyInverse));
+                }
+                return result;
+            };
+            futures.add(executorService.submit(task));
+        }
+
+        List<ECPoint> finalOutput = new ArrayList<>();
+        for (Future<List<ECPoint>> future : futures) {
+            List<ECPoint> result = future.get();
+            if (result == null) {
+                throw new IllegalStateException("Invalid result: received null from task");
+            }
+            finalOutput.addAll(result);
+        }
+
+        executorService.shutdown();
+        if (!executorService.awaitTermination(1, TimeUnit.MINUTES)) {
+            throw new IllegalStateException("Executor service did not terminate");
+        }
+
+        return finalOutput;
+    }
     public static List<BigInteger> clientPrfOnline(BigInteger keyInverse, List<List<BigInteger>> vectorOfPairs) {
         List<ECPoint> vectorOfPoints = new ArrayList<>();
         for (List<BigInteger> pair : vectorOfPairs) {
@@ -104,9 +150,7 @@ public class OPRF {
 
         List<ECPoint> vectorKeyInversePoints = new ArrayList<>();
         for (ECPoint point : vectorOfPoints) {
-            System.out.println("-- " + point.toString());
             ECPoint resultPoint = point.multiply(keyInverse);
-            System.out.println(resultPoint);
             vectorKeyInversePoints.add(resultPoint);
         }
 

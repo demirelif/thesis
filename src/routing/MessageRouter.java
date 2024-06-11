@@ -112,11 +112,9 @@ public abstract class MessageRouter {
 	 * @param s The settings object
 	 */
 	public MessageRouter(Settings s) {
-
 		this.bufferSize = Integer.MAX_VALUE; // defaults to rather large buffer
 		this.msgTtl = Message.INFINITE_TTL;
 		this.applications = new HashMap<String, Collection<Application>>();
-
 
 		if (s.contains(B_SIZE_S)) {
 			this.bufferSize = s.getLong(B_SIZE_S);
@@ -348,15 +346,6 @@ public abstract class MessageRouter {
 			ml.messageTransferStarted(newMessage, from, getHost());
 		}
 
-		for (Collection<Application> apps : this.applications.values()) {
-			for (Application app : apps) {
-				// Only the sensors should receive messages
-				if ( this.host.toString().contains("sensor")){
-					app.handle(newMessage, from);
-				}
-			}
-		}
-
 		return RCV_OK; // superclass always accepts messages
 	}
 
@@ -373,15 +362,12 @@ public abstract class MessageRouter {
 		boolean isFinalRecipient;
 		boolean isFirstDelivery; // is this first delivered instance of the msg
 
-		/** 		if (incoming == null) {
-		 throw new SimError("No message with ID " + id + " in the incoming "+
-		 "buffer of " + this.host);
-		 } */
 
-
-		if ( incoming == null ){
-			incoming = getMessage(id);
+		if (incoming == null) {
+			throw new SimError("No message with ID " + id + " in the incoming "+
+					"buffer of " + this.host);
 		}
+
 		incoming.setReceiveTime(SimClock.getTime());
 
 		// Pass the message to the application (if any) and get outgoing message
@@ -396,7 +382,6 @@ public abstract class MessageRouter {
 		Message aMessage = (outgoing==null)?(incoming):(outgoing);
 		// If the application re-targets the message (changes 'to')
 		// then the message is not considered as 'delivered' to this host.
-
 		isFinalRecipient = aMessage.getTo() == this.host;
 		isFirstDelivery = isFinalRecipient &&
 		!isDeliveredMessage(aMessage);

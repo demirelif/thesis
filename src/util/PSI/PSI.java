@@ -48,6 +48,7 @@ public class PSI {
             System.err.println("PSIClient or PSIServer is null");
             return;
         }
+        psiServer.serverOnline(psiClient.getEncryptedStream());
         System.out.println("Client has " + psiClient.getEncryptedStream().size() + " MAC addresses");
         System.out.println("Server has " + psiServer.getEncryptedStream().size() + " MAC addresses");
 

@@ -31,7 +31,7 @@ public class SensingApplication extends Application {
     public static final String SERVER = "sender";
     public static final String CLIENT = "receiver";
     private String role;
-    private final boolean USE_ENCRYPTION = false;
+    private final boolean USE_ENCRYPTION = true;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
@@ -40,6 +40,7 @@ public class SensingApplication extends Application {
     boolean neverBeenPRFed = true;
     public static final String APP_ID = "de.in.tum.SensingApplication";
 
+    private boolean isPSIed = false;
     public List<DTNHost> hosts = new ArrayList<>();
 
     private double lastProbe = 0;
@@ -289,7 +290,7 @@ public class SensingApplication extends Application {
     @Override
     public Message handle(Message msg, DTNHost host) {
         if ( msg.getId().equals("probe-encrypted-message")){
-            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() ){
+            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed){
                 if ( USE_ENCRYPTION ){
                     PSIServer psiServer = new PSIServer();
                     psiServer.addStream(MACAddressesServer);
@@ -316,18 +317,20 @@ public class SensingApplication extends Application {
                     psi.addPSIServer(psiServer);
                     psi.competeIntersection();
                 }
+                isPSIed = true;
             }
 
         }
 
         String type = (String) msg.getProperty("type");
         if (type == null) return msg; // Not a probe message
+        System.out.println("Type: " + type);
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
             String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
             Message m = new Message(host, msg.getFrom(), id, 1);
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
-
+            // TODO change this part later
             if ( msg.getTo().getAddress() == 3 ){
                 dtnHost = host;
             }
@@ -352,7 +355,7 @@ public class SensingApplication extends Application {
         }
 
         counter++;
-        if ( dtnHost != null && (counter > 700 && counter < 900) ){
+        if ( dtnHost != null && (counter > 700 && counter < 900) && !isPSIed){
             String msgId = "encrypted-message";
             Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
                 if (!MACAddressesClient.isEmpty() && !USE_ENCRYPTION){
@@ -381,10 +384,6 @@ public class SensingApplication extends Application {
                     host.sendMessage(m.getId(), receiver);
                     // Call listeners
                     super.sendEventToListeners("ProbeSent", null, host);
-                }
-
-                if ( MACAddressesServer.size() == 295 && USE_ENCRYPTION){
-                    //serverOffline();
                 }
         }
 
