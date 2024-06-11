@@ -1,9 +1,12 @@
 package routing;
 
-import core.Connection;
-import core.Message;
-import core.Settings;
+import core.*;
+
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+
+import static applications.SensingApplication.APP_ID;
 
 
 public class ProbeRouter extends ActiveRouter{
@@ -32,6 +35,20 @@ public class ProbeRouter extends ActiveRouter{
         dropExpiredMessages();
     }
 
+    @Override
+    public int receiveMessage(Message m, DTNHost from) {
+        System.out.println("ProbeRouter.receiveMessage");
+        for (Application app : this.getApplications(APP_ID)) {
+                // Only the sensors should receive messages
+                if ( this.getHost().toString().contains("sensor")){
+                    app.handle(m, from);
+                }
+                else {
+                    // encrypted message
+                }
+        }
+        return super.receiveMessage(m, from);
+    }
 
     @Override
     public ProbeRouter replicate() {

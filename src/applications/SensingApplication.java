@@ -31,7 +31,7 @@ public class SensingApplication extends Application {
     public static final String SERVER = "sender";
     public static final String CLIENT = "receiver";
     private String role;
-    private final boolean USE_ENCRYPTION = true;
+    private final boolean USE_ENCRYPTION = false;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
@@ -289,6 +289,7 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
+        System.out.println("handle");
         if ( msg.getId().equals("probe-encrypted-message")){
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed){
                 if ( USE_ENCRYPTION ){
@@ -323,6 +324,8 @@ public class SensingApplication extends Application {
         }
 
         String type = (String) msg.getProperty("type");
+        System.out.println(msg.getTo() + " " + msg.getFrom());
+        System.out.println(msg);
         if (type == null) return msg; // Not a probe message
         System.out.println("Type: " + type);
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
@@ -331,6 +334,7 @@ public class SensingApplication extends Application {
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
             // TODO change this part later
+            System.out.println(msg.getTo().getAddress());
             if ( msg.getTo().getAddress() == 3 ){
                 dtnHost = host;
             }
@@ -354,8 +358,9 @@ public class SensingApplication extends Application {
            messageIDs.add(Integer.getInteger(msg.getId()));
         }
 
+
         counter++;
-        if ( dtnHost != null && (counter > 700 && counter < 900) && !isPSIed){
+        if ( dtnHost != null && (counter > 700 && counter < 900) ){
             String msgId = "encrypted-message";
             Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
                 if (!MACAddressesClient.isEmpty() && !USE_ENCRYPTION){
