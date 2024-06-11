@@ -28,7 +28,6 @@ public class DTNHost implements Comparable<DTNHost> {
 	private Coord destination;	// where is it going
 
 	private MessageRouter router;
-	private PassiveRouter passiveRouter;
 	private MovementModel movement;
 	private Path path;
 	private double speed;
@@ -82,8 +81,6 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.movement.setComBus(comBus);
 		this.movement.setHost(this);
 		setRouter(mRouterProto.replicate());
-		Settings settings = new Settings();
-		this.passiveRouter = new PassiveRouter(settings);
 
 		this.location = movement.getInitialLocation();
 
@@ -91,14 +88,12 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.path = null;
 
 
-		// TODO: currently we have the node 5 as the receiver / client, and 3 as the sender / server
-		if ( address == 4 ){
+		// TODO: currently we have the node 5 as the receiver / client, and 3 and 4 as sender / server
+		if ( address == 5 ){
 			this.role = "receiver";
 		}
-		else if ( address == 3 ){
+		else if ( address == 3 || address == 4 ){
 			this.role = "sender";
-		} else {
-			this.role = "default";
 		}
 
 		if (movLs != null) { // inform movement listeners about the location
@@ -394,15 +389,6 @@ public class DTNHost implements Comparable<DTNHost> {
 		double distance;
 		double dx, dy;
 
-		// Sending nodes
-		if ( (this.name).equals("p0") || (this.name).equals("p1") || (this.name).equals("p2")){
-			//sendMessage();
-		}
-		// Sensor nodes
-		else {
-
-		}
-
 		if (!isMovementActive() || SimClock.getTime() < this.nextTimeToMove) {
 			return;
 		}
@@ -424,7 +410,6 @@ public class DTNHost implements Comparable<DTNHost> {
 				return; // no more waypoints left
 			}
 			distance = this.location.distance(this.destination);
-		//	sendMessage();
 		}
 
 		// move towards the point for possibleMovement amount

@@ -37,7 +37,6 @@ public class ProbeRouter extends ActiveRouter{
 
     @Override
     public int receiveMessage(Message m, DTNHost from) {
-        System.out.println("ProbeRouter.receiveMessage");
         for (Application app : this.getApplications(APP_ID)) {
                 // Only the sensors should receive messages
                 if ( this.getHost().toString().contains("sensor")){

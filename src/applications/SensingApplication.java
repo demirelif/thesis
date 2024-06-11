@@ -289,7 +289,6 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
-        System.out.println("handle");
         if ( msg.getId().equals("probe-encrypted-message")){
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed){
                 if ( USE_ENCRYPTION ){
@@ -320,21 +319,16 @@ public class SensingApplication extends Application {
                 }
                 isPSIed = true;
             }
-
         }
 
         String type = (String) msg.getProperty("type");
-        System.out.println(msg.getTo() + " " + msg.getFrom());
-        System.out.println(msg);
         if (type == null) return msg; // Not a probe message
-        System.out.println("Type: " + type);
         if (msg.getFrom() == host && type.equalsIgnoreCase("probe")) {
             String id = "probe-" + SimClock.getIntTime() + "-" + host.getAddress();
             Message m = new Message(host, msg.getFrom(), id, 1);
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
             // TODO change this part later
-            System.out.println(msg.getTo().getAddress());
             if ( msg.getTo().getAddress() == 3 ){
                 dtnHost = host;
             }
