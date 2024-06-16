@@ -92,7 +92,7 @@ public class DTNHost implements Comparable<DTNHost> {
 		if ( address == 5 ){
 			this.role = "receiver";
 		}
-		else if ( address == 3 || address == 4 ){
+		else if ( address == 4 ){
 			this.role = "sender";
 		}
 

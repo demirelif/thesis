@@ -3,34 +3,38 @@ package util.PSI;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
-import util.OPRF;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.io.ByteArrayOutputStream;
+
+import static util.OPRF.serverPrfOfflineParallel;
 import static util.OPRF.serverPrfOnlineParallel;
 
 // Performs simple hashing
 public class PSIServer {
-    private BigInteger OPRFServerKey = new BigInteger("1234567891011121314151617181920");
+    private static final ECCurve CURVE_USED = new SecP192R1Curve();
+    private static ECPoint G = CURVE_USED.createPoint(
+            new BigInteger("188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012", 16),
+            new BigInteger("07192B95FFC8DA78631011ED6B24CDD573F977A11E794811", 16)
+    );
+
+    private BigInteger OPRFServerKey = new BigInteger("1234567890");
+    BigInteger ORDER_OF_GENERATOR = Parameters.ORDER_OF_GENERATOR;
+    ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
+
+
+
+
     private List<Integer> stream;
     private List<List<BigInteger>> encryptedStream;
 
     private static final ECCurve CURVE = new SecP256K1Curve();
-
-    private static final BigInteger ORDER_OF_GENERATOR = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951");
-
-    // Defines the generator point G
-    private static final ECPoint G = CURVE.createPoint(
-            new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
-            new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
-    );
 
     public PSIServer(){
     }
@@ -41,6 +45,11 @@ public class PSIServer {
 
     public void addEncryptedStream( List<List<BigInteger>> stream ){
         this.encryptedStream = stream;
+    }
+
+    public void serverOffline(List<Integer> serverItems){
+        List<Integer> prfedServerSetList = serverPrfOfflineParallel(serverItems, serverPointPrecomputed);
+        System.out.println(prfedServerSetList);
     }
 
     public void serverOnline(List<List<BigInteger>> stream){
@@ -87,7 +96,7 @@ public class PSIServer {
         return this.encryptedStream;
     }
 
-    public void serverOffline(){
+    public void serverOfflineOld(List<Integer> OPRFedServerSet){
         if ( stream.isEmpty() ){
             System.err.println("The stream of server is empty ");
             return;
@@ -96,9 +105,9 @@ public class PSIServer {
         ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
 
         // Apply PRF to a set of server, using parallel computation
-        List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(stream, serverPointPrecomputed);
-        Set<Integer> prfedServerSet = new HashSet<>(prfedServerSetList);
-        long t1 = System.currentTimeMillis();
+       // List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(stream, serverPointPrecomputed);
+       // Set<Integer> prfedServerSet = new HashSet<>(prfedServerSetList);
+       // long t1 = System.currentTimeMillis();
 
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         int dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE).intValue();
@@ -107,7 +116,7 @@ public class PSIServer {
         int numberOfBins = (int) Math.pow(2, Parameters.OUTPUT_BITS);
 
         SimpleHash sh = new SimpleHash(Parameters.HASH_SEEDS);
-        for ( int item: prfedServerSet){
+        for ( int item: OPRFedServerSet){
             for ( int i = 0; i < Parameters.NUMBER_OF_HASHES; i++ ){
                 sh.insert(item, i);
             }
@@ -147,10 +156,11 @@ public class PSIServer {
             poly_coeffs.add(coeffs_from_bin);
         }
 
+        System.out.println("coef " + poly_coeffs.get(0));
         long t3 = System.currentTimeMillis();
         addEncryptedStream(poly_coeffs);
 
-        // TODO this part is extremely slow ~ 10s
+
         System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
     }
 

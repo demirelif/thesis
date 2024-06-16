@@ -8,6 +8,10 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
+import org.bouncycastle.math.ec.ECCurve;
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
 import util.OPRF;
 
 import java.io.*;
@@ -25,6 +29,17 @@ import static util.PSI.AuxiliaryFunctions.windowing;
 
 // Performs Cuckoo hashing
 public class PSIClient {
+    private static final ECCurve CURVE_USED = new SecP192R1Curve();
+    private static ECPoint G = CURVE_USED.createPoint(
+            new BigInteger("188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012", 16),
+            new BigInteger("07192B95FFC8DA78631011ED6B24CDD573F977A11E794811", 16)
+    );
+
+    BigInteger OPRFClientKey = new BigInteger("9876543210"); // Example key, replace with actual logic
+    BigInteger ORDER_OF_GENERATOR = Parameters.ORDER_OF_GENERATOR;
+    ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
+
+
     private ArrayList<Integer> elements;
     private static final int modulusDegree = 64;
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);

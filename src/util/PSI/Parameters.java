@@ -1,5 +1,6 @@
 package util.PSI;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 
@@ -9,6 +10,8 @@ public class Parameters {
     public static final int SERVER_SIZE = (int) Math.pow(2, 20);
     public static final int CLIENT_SIZE = 4000;
     public static final int INTERSECTION_SIZE = 3500;
+
+   public static final BigInteger ORDER_OF_GENERATOR = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951");
 
     // Seeds used by both the Server and the Client for the hash functions
     public static final List<Long> HASH_SEEDS = Arrays.asList(123456789L, 10111213141516L, 17181920212223L);

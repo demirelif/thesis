@@ -8,18 +8,13 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
-import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.ECCurve;
 
 import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
 import util.OPRF;
 import util.PSI.*;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.Array;
 import java.math.BigInteger;
 
 // TODO should I use this ?
@@ -28,16 +23,16 @@ import core.SimScenario;
 import java.util.*;
 
 public class SensingApplication extends Application {
-    public static final String SERVER = "sender";
-    public static final String CLIENT = "receiver";
-    private String role;
-    private final boolean USE_ENCRYPTION = false;
+    private final boolean USE_ENCRYPTION = true;
+
+    // PSI Parameters
+    private SealContext context;
+    private KeyGenerator keyGen;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
     public static final String PROBE_SEED = "seed";
     public static final String PROBE_SIZE = "probeSize";
-    boolean neverBeenPRFed = true;
     public static final String APP_ID = "de.in.tum.SensingApplication";
 
     private boolean isPSIed = false;
@@ -59,8 +54,7 @@ public class SensingApplication extends Application {
     // Encryption parameters
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
     Modulus plainModulus = new Modulus(1 << 6);
-    private SealContext context;
-    private KeyGenerator keygen;
+
     private PublicKey pk;
     Encryptor encryptor;
     Decryptor decryptor;
@@ -110,6 +104,7 @@ public class SensingApplication extends Application {
             this.destMax = destination[1];
         }
 
+        createEncryptionParameters();
 
         rng = new Random(this.seed);
         super.setAppID(APP_ID);
@@ -118,6 +113,18 @@ public class SensingApplication extends Application {
     public SensingApplication(SensingApplication s) {
         super(s);
         this.rng = new Random(this.seed);
+    }
+
+
+    private void createEncryptionParameters(){
+        EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
+        parms.setPolyModulusDegree(64);
+        parms.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
+        // t must be a prime number and t mod 2n = 1, then we can us batch encode
+        parms.setPlainModulus(257);
+        context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
+        keyGen = new KeyGenerator(context);
+        keyGen.createPublicKey(pk);
     }
 
 
@@ -145,13 +152,13 @@ public class SensingApplication extends Application {
         batchEncoder.encode(plainVec, plain);
 
         Ciphertext encrypted = new Ciphertext();
-        keygen = new KeyGenerator(context);
+       // keygen = new KeyGenerator(context);
 
         PublicKey pk = new PublicKey();
-        keygen.createPublicKey(pk);
+       // keygen.createPublicKey(pk);
 
         Encryptor encryptor = new Encryptor(context, pk);
-        Decryptor decryptor = new Decryptor(context, keygen.secretKey());
+       // Decryptor decryptor = new Decryptor(context, keygen.secretKey());
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
         receivedMessagesClient.put(msg, msg.getReceiveTime());
@@ -161,151 +168,43 @@ public class SensingApplication extends Application {
     private void crowdCountingClient(Message msg){
         receivedMessagesClient.put(msg, msg.getReceiveTime());
         MACAddressesClient.add(msg.getFrom().hashCode());
-        /**
-         *         if ( receivedMessagesClient.size() == 10 ){
-         *             clientOffline();
-         *         }
-         *         if ( receivedMessagesClient.size() > 10 && neverBeenPRFed ){
-         *             PSIClient.finalizeOPRF(OPRFClientKey, encryptedMessagesClient );
-         *             neverBeenPRFed = false;
-         *         }
-         * */
+        // System.out.println(MACAddressesClient.size());
+        if ( MACAddressesClient.size() == 1515 ){
+            System.out.println("Crowd counting - client " + dtnHost);
+        }
     }
 
     /** Receives and saves the complete message list for the server */
     private void crowdCountingServer(Message msg){
-        receivedMessagesServer.put(msg, msg.getReceiveTime());
         MACAddressesServer.add(msg.getFrom().hashCode());
-
+        if ( MACAddressesServer.size() == 2030 ){
+            System.out.println("Crowd counting - server " + dtnHost);
+            List<Ciphertext> ciphertexts = encryptSet(MACAddressesServer);
+        }
     }
 
-    /** The preprocessing phase (OPRF, Batching) for the client */
-    private void clientOffline(){
-        org.bouncycastle.math.ec.ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
-
-        // OPRF Layer: encoding the client's set as elliptic curve points
-        for ( Message msg : receivedMessagesClient.keySet()){
-            if ( msg != null ){
-                encryptedMessagesClient.add(OPRF.clientPRFOffline(String.valueOf(msg.getUniqueId()), clientPointPrecomputed));
-            }
+    private List<Ciphertext> encryptSet(List<Integer> set){
+        // TODO do I need to use batch encoder here ??
+        Ciphertext encrypted = new Ciphertext();
+        Encryptor encryptor = new Encryptor(context, pk);
+        List<Ciphertext> ciphertexts = new ArrayList<>();
+        for (int i = 0; i < set.size(); i++) {
+            Plaintext plain = new Plaintext();
+            plain.set(set.get(i));
+            ciphertexts.add( encryptor.encrypt(plain));
         }
-        this.update(dtnHost);
-
-        System.out.println("Client offline");
-        System.out.println(encryptedMessagesClient.size());
-        /**
-         *         try (FileOutputStream fileOut = new FileOutputStream("client_preprocessed");
-         *              ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-         *             out.writeObject(encryptedMessagesClient);
-         *         } catch (IOException e) {
-         *             e.printStackTrace();
-         *         }
-         */
-    }
-
-    /** The preprocessing phase (OPRF, Simple hashing, partitioning, finding the polynomials ) for the server */
-    private void serverOffline(){
-        long t0 = System.currentTimeMillis();
-        org.bouncycastle.math.ec.ECPoint serverPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFServerKey.mod(ORDER_OF_GENERATOR));
-
-        // Apply PRF to a set of server, using parallel computation
-        List<Integer> prfedServerSetList = OPRF.serverPrfOfflineParallel(MACAddressesServer, serverPointPrecomputed);
-        Set<Integer> prfedServerSet = new HashSet<>(prfedServerSetList);
-        long t1 = System.currentTimeMillis();
-
-        int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
-        int dummyMessageServer= BigInteger.valueOf(2).pow(Parameters.SIGMA_MAX - Parameters.OUTPUT_BITS + logNoOfHashes).add(BigInteger.ONE).intValue();
-        int serverSize = MACAddressesServer.size();
-        int miniBinCapacity = Parameters.BIN_CAPACITY / Parameters.OUTPUT_BITS;
-        int numberOfBins = (int) Math.pow(2, Parameters.OUTPUT_BITS);
-
-        SimpleHash sh = new SimpleHash(Parameters.HASH_SEEDS);
-        for ( int item: prfedServerSet){
-            for ( int i = 0; i < Parameters.NUMBER_OF_HASHES; i++ ){
-                sh.insert(item, i);
-            }
-        }
-
-        // Pad with dummyMessages
-        for ( int i = 0; i < numberOfBins; i++ ){
-            for ( int j = 0; j < Parameters.BIN_CAPACITY; j++ ){
-                if ( (sh.getSimpleHashedData()[i][j]) == -1 ){
-                    sh.getSimpleHashedData()[i][j] = dummyMessageServer;
-                }
-            }
-        }
-
-        // Perform partitioning and create polynomial coefficients
-
-        List<List<BigInteger>> poly_coeffs = new ArrayList<>();
-
-        for (int i = 0; i < numberOfBins; i++) {
-            // Create a list of coefficients of all minibins from concatenating the list of coefficients of each minibin
-            List<BigInteger> coeffs_from_bin = new ArrayList<>();
-
-            for (int j = 0; j < Parameters.ALPHA; j++) {
-
-                List<Integer> roots = new ArrayList<>();
-
-                for (int r = 0; r < miniBinCapacity; r++) {
-                    int index = miniBinCapacity * j + r;
-                    if ( index < sh.getSimpleHashedData()[i].length ){
-                        roots.add(sh.getSimpleHashedData()[i][index]);
-                    }
-                }
-
-                ArrayList<BigInteger> coeffs_from_roots = (ArrayList<BigInteger>) AuxiliaryFunctions.coeffsFromRoots(roots, Parameters.PLAIN_MODULUS);
-                coeffs_from_bin.addAll(coeffs_from_roots);
-            }
-            poly_coeffs.add(coeffs_from_bin);
-        }
-
-        long t3 = System.currentTimeMillis();
-
-        // TODO this part is extremely slow ~ 10s
-        System.out.printf("Server OFFLINE time: %.2fs%n", (t3 - t0) / 1000.0);
+        System.out.println("Encrypted.");
+        return ciphertexts;
     }
 
 
-    public static Set<Integer> PSI(Set<Integer> setA, Set<Integer> setB){
-        // use Vaikuntanathan
-
-        // Encryption for set A
-        Set<BigInteger> encryptedSetA = new HashSet<>();
-        for (Integer element : setA) {
-            encryptedSetA.add(null); // add the encrypted version here
-        }
-
-        Set<BigInteger> encryptedSetB = new HashSet<>();
-        for (Integer element : setB) {
-            encryptedSetB.add(null); // add the encrypted version here
-        }
-
-        // compute intersection
-
-        // return intersection
-        return null;
-    }
 
     @Override
     public Message handle(Message msg, DTNHost host) {
         if ( msg.getId().equals("probe-encrypted-message")){
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed){
                 if ( USE_ENCRYPTION ){
-                    PSIServer psiServer = new PSIServer();
-                    psiServer.addStream(MACAddressesServer);
-                    psiServer.serverOffline();
-
-                   // psiServer.addEncryptedStream(encryptedMessagesServer);
-                    PSIClient psiClient = new PSIClient();
-                    psiClient.addEncryptedStream((List<List<BigInteger>>) msg.getProperty("body"));
-
-                    psiClient.finalizeOPRF(OPRFClientKey, encryptedMessagesClient );
-
-                    PSI psi = new PSI();
-                    psi.addPSIClient(psiClient);
-                    psi.addPSIServer(psiServer);
-                    psi.competeEncryptedIntersection();
+                    // Do something
                 } else {
                     // Doing PSI
                     PSIServer psiServer = new PSIServer();
@@ -329,15 +228,13 @@ public class SensingApplication extends Application {
             m.addProperty("type", "probeResponse");
             m.setAppID(APP_ID);
             // TODO change this part later
-            if ( msg.getTo().getAddress() == 3 ){
-                dtnHost = host;
-            }
-            if ( msg.getTo().getRole().equals(SERVER)){
+            // TODO why there are multiple hosts with the same address? / calling them multiple times ?
+            this.dtnHost = msg.getTo();
+            if ( dtnHost.getAddress() == 4 ){
                 crowdCountingServer(msg);
-                dtnHost = msg.getTo();
-            } else if ( msg.getTo().getRole().equals(CLIENT)){
+            }
+            if ( dtnHost.getAddress() == 5 ){
                 crowdCountingClient(msg);
-                dtnHost = msg.getTo();
             }
         }
 
@@ -371,7 +268,6 @@ public class SensingApplication extends Application {
                     super.sendEventToListeners("ProbeSent", null, host);
                 }
                 if ( !MACAddressesClient.isEmpty() && USE_ENCRYPTION){
-                    clientOffline();
                     DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
                     Message m = new Message(host, receiver, "probe" + "-" +
                             msgId,
