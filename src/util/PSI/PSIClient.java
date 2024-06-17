@@ -66,6 +66,10 @@ public class PSIClient {
     public void addEncryptedStream(List<List<BigInteger>> stream){
 this.encryptedStream = stream;
     }
+
+    public int getStreamLength(){
+        return stream.size();
+    }
     /** Applying inverse of the secret key, OPRFClientKey */
     public void finalizeOPRF(BigInteger OPRFClientKey, List<List<BigInteger>> PRFedEncodedClientSet ) {
         // Computing the inverse of the secret key

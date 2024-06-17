@@ -6,6 +6,7 @@ import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
 import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
+import util.PrivateSetIntersection;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -59,53 +60,25 @@ public class PSI {
             }
     }
 
-    public void homomorphicOperations(List<Integer> clientSet, Ciphertext serverCiphertext){
-        long[] setArray = new long[clientSet.size()];
-        for ( int i = 0; i < clientSet.size(); i++){
-            setArray[i] = (long) clientSet.get(i);
-        }
-
-        List<Plaintext> clientPlaintexts = new ArrayList<>();
-        for ( int i = 0; i < setArray.length; i+= batchSize){
-            // Determine the end index of the current batch
-            int end = Math.min(i + batchSize, setArray.length);
-
-            // Create a batch from locations_bob
-            long[] batch = Arrays.copyOfRange(setArray, i, end);
-
-            // Add the batch to the list
-            Plaintext plaintext = new Plaintext();
-            plaintext.set(batch);
-            clientPlaintexts.add(plaintext);
-        }
-        int counter = 0;
-        evaluator = new Evaluator(context);
-
-        for (Plaintext plaintext : clientPlaintexts) {
-            Ciphertext finalProduct = new Ciphertext();
-            evaluator.subPlain(serverCiphertext, plaintext, finalProduct);
-
-        }
-
-    }
-
     public void competeEncryptedIntersection(){
-        if ( psiClient == null || psiServer == null){
-            System.err.println("PSIClient or PSIServer is null");
-            return;
+        try {
+            PrivateSetIntersection.setup();
+
+            // Client encrypts its elements
+            Ciphertext ciphertext = PrivateSetIntersection.encryptStream(psiClient.getStream());
+
+            // Server performs homomorphic operations
+            List<String> finalProducts = PrivateSetIntersection.homomorphicOperations(ciphertext, psiClient.getStreamLength(), psiServer.getStream());
+
+            assert finalProducts != null;
+
+            // Client decrypts intersection
+            int intersectionSize = PrivateSetIntersection.decryptIntersection(finalProducts, psiClient.getStreamLength());
+            System.out.println("Intersection Size " + intersectionSize);
+
+        } catch (Exception e){
+            System.err.println(e);
         }
-        psiServer.serverOnline(psiClient.getEncryptedStream());
-        System.out.println("Client has " + psiClient.getEncryptedStream().size() + " MAC addresses");
-        System.out.println("Server has " + psiServer.getEncryptedStream().size() + " MAC addresses");
-
-        System.out.println("Sigma-MAX from client " + psiClient.getEncryptedStream().get(0));
-        System.out.println("Sigma-MAX from server " + psiServer.getEncryptedStream().get(0));
-
-        Set<List<BigInteger>> intersection = new HashSet<>(psiClient.getEncryptedStream());
-        intersection.retainAll(psiServer.getEncryptedStream());
-        System.out.println(intersection);
-        System.out.println("The total number of unique nodes " + intersection.size());
-
     }
 
     private static EncryptionParameters getEncryptionParameters(){

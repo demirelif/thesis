@@ -52,6 +52,10 @@ public class PSIServer {
         System.out.println(prfedServerSetList);
     }
 
+    public int getStreamLength(){
+        return this.stream.size();
+    }
+
     public void serverOnline(List<List<BigInteger>> stream){
         double logNoOfHashes = Math.log(Parameters.NUMBER_OF_HASHES) / Math.log(2) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);

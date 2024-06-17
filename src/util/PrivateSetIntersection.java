@@ -21,27 +21,7 @@ public class PrivateSetIntersection {
     private static Evaluator evaluator;
     private static final int batchSize = 1;
 
-    public static void main(String[] args) throws Exception {
-        setup();
-
-        // Sample data
-        List<Integer> elementsAlice = Arrays.asList(0, 6, 10, 90);
-        List<Integer> elementsBob = Arrays.asList(3, 6, 10, 5, 0, 90);
-
-        // Step 2: Alice encrypts her elements
-        Ciphertext setCiphertextsAlice = aliceEncryptElements(elementsAlice);
-
-        // Step 3: Bob performs homomorphic operations
-        List<String> finalProducts = bobHomomorphicOperations(setCiphertextsAlice, elementsAlice.size(), elementsBob);
-
-        // Step 4: Alice decrypts the intersection
-        assert finalProducts != null;
-        int intersectionSize = aliceDecryptIntersection(finalProducts, elementsAlice.size());
-
-        System.out.println("Size of common elements: " + intersectionSize);
-    }
-
-    private static void createContext() {
+    public static void createContext() {
         EncryptionParameters parameters = new EncryptionParameters(SchemeType.BFV);
         parameters.setPolyModulusDegree(64);
         parameters.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
@@ -52,7 +32,7 @@ public class PrivateSetIntersection {
     }
 
     // Step 1: Setup
-    private static void setup() throws Exception {
+    public static void setup() throws Exception {
         System.out.println("===============================\nSTEP 1: setup\n===============================");
         createContext();
         batchEncoder = new BatchEncoder(context);
@@ -76,8 +56,7 @@ public class PrivateSetIntersection {
         return ciphertexts;
     }
 
-    private static Ciphertext aliceEncryptElements(List<Integer> elementsAlice) {
-        System.out.println("Participating as Alice");
+    public static Ciphertext encryptStream(List<Integer> elementsAlice) {
         System.out.println("=========================\nSTEP 2: encrypt elements\n=========================");
 
         int[] setAlice = elementsAlice.stream().mapToInt(i -> i).toArray();
@@ -91,15 +70,14 @@ public class PrivateSetIntersection {
 
         Ciphertext setCiphertextsAlice = encryptor.encrypt(setPlaintextsAlice);
 
-        System.out.println("Sending Alice's encrypted elements.");
+        System.out.println("Sending clients encrypted elements.");
         return setCiphertextsAlice;
     }
 
-    // Step 3: Bob performs homomorphic operations
-    private static List<String> bobHomomorphicOperations(Ciphertext setCiphertextsAlice, int setAliceLength, List<Integer> elementsBob) {
-        System.out.println("Participating as Bob");
+    // Step 3: Server performs homomorphic operations
+    public static List<String> homomorphicOperations(Ciphertext setCiphertextsAlice, int setAliceLength, List<Integer> elementsBob) {
+        System.out.println("Participating as Server");
         System.out.println("============================================\nSTEP 3: homomorphically compute intersection\n============================================");
-        System.out.println("(optimization) using batches of size " + batchSize);
 
         List<String> finalProducts = new ArrayList<>();
         try {
@@ -160,9 +138,8 @@ public class PrivateSetIntersection {
         }
     }
 
-    // Step 4: Alice decrypts the intersection
-    private static int aliceDecryptIntersection(List<String> finalProducts, int setAliceLength) {
-        System.out.println("Participating as Alice");
+    // Step 4: Client decrypts the intersection
+    public static int decryptIntersection(List<String> finalProducts, int setAliceLength) {
         System.out.println("================================\nSTEP 4: decrypting intersections\n================================\n(belongs to the intersection iff decryption equals 0 in at least one batch)");
 
         int counter = 0;

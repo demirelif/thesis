@@ -104,7 +104,7 @@ public class SensingApplication extends Application {
             this.destMax = destination[1];
         }
 
-        createEncryptionParameters();
+        //createEncryptionParameters();
 
         rng = new Random(this.seed);
         super.setAppID(APP_ID);
@@ -166,57 +166,32 @@ public class SensingApplication extends Application {
 
     /** Receives and saves the complete message list for the client */
     private void crowdCountingClient(Message msg){
-        receivedMessagesClient.put(msg, msg.getReceiveTime());
-        MACAddressesClient.add(msg.getFrom().hashCode());
-        // System.out.println(MACAddressesClient.size());
-        if ( MACAddressesClient.size() == 1515 ){
-            System.out.println("Crowd counting - client " + dtnHost);
-        }
+        MACAddressesClient.add(msg.getFrom().getAddress());
     }
 
     /** Receives and saves the complete message list for the server */
     private void crowdCountingServer(Message msg){
-        MACAddressesServer.add(msg.getFrom().hashCode());
-        if ( MACAddressesServer.size() == 2030 ){
-            System.out.println("Crowd counting - server " + dtnHost);
-            List<Ciphertext> ciphertexts = encryptSet(MACAddressesServer);
-        }
+        MACAddressesServer.add(msg.getFrom().getAddress());
     }
-
-    private List<Ciphertext> encryptSet(List<Integer> set){
-        // TODO do I need to use batch encoder here ??
-        Ciphertext encrypted = new Ciphertext();
-        Encryptor encryptor = new Encryptor(context, pk);
-        List<Ciphertext> ciphertexts = new ArrayList<>();
-        for (int i = 0; i < set.size(); i++) {
-            Plaintext plain = new Plaintext();
-            plain.set(set.get(i));
-            ciphertexts.add( encryptor.encrypt(plain));
-        }
-        System.out.println("Encrypted.");
-        return ciphertexts;
-    }
-
-
 
     @Override
     public Message handle(Message msg, DTNHost host) {
         if ( msg.getId().equals("probe-encrypted-message")){
-            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed){
+            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed && dtnHost.getAddress() == 5){
+                isPSIed = true;
+                PSIServer psiServer = new PSIServer();
+                psiServer.addStream(removeDuplicates(MACAddressesServer));
+                PSIClient psiClient = new PSIClient();
+                ArrayList<Integer> clientStream = (ArrayList<Integer>) msg.getProperty("body");
+                psiClient.addStream(removeDuplicates(clientStream));
+                PSI psi = new PSI();
+                psi.addPSIClient(psiClient);
+                psi.addPSIServer(psiServer);
                 if ( USE_ENCRYPTION ){
-                    // Do something
+                    psi.competeEncryptedIntersection();
                 } else {
-                    // Doing PSI
-                    PSIServer psiServer = new PSIServer();
-                    psiServer.addStream(MACAddressesServer);
-                    PSIClient psiClient = new PSIClient();
-                    psiClient.addStream((List<Integer>) msg.getProperty("body"));
-                    PSI psi = new PSI();
-                    psi.addPSIClient(psiClient);
-                    psi.addPSIServer(psiServer);
                     psi.competeIntersection();
                 }
-                isPSIed = true;
             }
         }
 
@@ -248,41 +223,27 @@ public class SensingApplication extends Application {
         for (Message msg : receivedMessagesServer.keySet()) {
            messageIDs.add(Integer.getInteger(msg.getId()));
         }
-
-
-        counter++;
-        if ( dtnHost != null && (counter > 700 && counter < 900) ){
+        if ( dtnHost != null && (MACAddressesClient.size() == 1698) && !isPSIed ){
+            isPSIed = true;
             String msgId = "encrypted-message";
-            Message encryptedMessage = new Message(host, dtnHost, msgId, 1);
-                if (!MACAddressesClient.isEmpty() && !USE_ENCRYPTION){
-                    DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
-                    Message m = new Message(host, receiver, "probe" + "-" +
+            DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
+            Message m = new Message(host, receiver, "probe" + "-" +
                             msgId,
                             MACAddressesClient.size()*8);
-                    m.addProperty("type", "probe");
-                    m.addProperty("body", MACAddressesClient);
-                    m.setAppID(APP_ID);
-                    host.createNewMessage(m);
-                    host.sendMessage(m.getId(), receiver);
-                    // Call listeners
-                    super.sendEventToListeners("ProbeSent", null, host);
-                }
-                if ( !MACAddressesClient.isEmpty() && USE_ENCRYPTION){
-                    DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
-                    Message m = new Message(host, receiver, "probe" + "-" +
-                            msgId,
-                            encryptedMessagesClient.size()*8);
-                    m.addProperty("type", "probe");
-                    m.addProperty("body", encryptedMessagesClient);
-                    m.setAppID(APP_ID);
-                    host.createNewMessage(m);
-                    host.sendMessage(m.getId(), receiver);
-                    // Call listeners
-                    super.sendEventToListeners("ProbeSent", null, host);
-                }
+            m.addProperty("type", "probe");
+            m.addProperty("body", MACAddressesClient);
+            m.setAppID(APP_ID);
+            host.createNewMessage(m);
+            host.sendMessage(m.getId(), receiver);
+            // Call listeners
+            super.sendEventToListeners("ProbeSent", null, host);
         }
+    }
 
-
+    public static <T> List<T> removeDuplicates(List<T> list) {
+        // Using LinkedHashSet to maintain insertion order
+        Set<T> set = new LinkedHashSet<>(list);
+        return new ArrayList<>(set);
     }
 
     @Override
