@@ -21,6 +21,26 @@ public class PrivateSetIntersection {
     private static Evaluator evaluator;
     private static final int batchSize = 1;
 
+    public static void main(String[] args) throws Exception {
+        setup();
+
+        // Sample data
+        List<Integer> elementsAlice = Arrays.asList(5,3);
+        List<Integer> elementsBob = Arrays.asList(3,5);
+
+        // Step 2: Alice encrypts her elements
+        Ciphertext setCiphertextsAlice = encryptStream(elementsAlice);
+
+        // Step 3: Bob performs homomorphic operations
+        List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, elementsAlice.size(), elementsBob);
+
+        // Step 4: Alice decrypts the intersection
+        assert finalProducts != null;
+        int intersectionSize = decryptIntersection(finalProducts, elementsAlice.size());
+
+        System.out.println("Size of common elements: " + intersectionSize);
+    }
+
     public static void createContext() {
         EncryptionParameters parameters = new EncryptionParameters(SchemeType.BFV);
         parameters.setPolyModulusDegree(64);
@@ -74,9 +94,9 @@ public class PrivateSetIntersection {
         return setCiphertextsAlice;
     }
 
-    // Step 3: Server performs homomorphic operations
+    // Step 3: Bob performs homomorphic operations
     public static List<String> homomorphicOperations(Ciphertext setCiphertextsAlice, int setAliceLength, List<Integer> elementsBob) {
-        System.out.println("Participating as Server");
+        System.out.println("Participating as server");
         System.out.println("============================================\nSTEP 3: homomorphically compute intersection\n============================================");
 
         List<String> finalProducts = new ArrayList<>();
@@ -138,8 +158,9 @@ public class PrivateSetIntersection {
         }
     }
 
-    // Step 4: Client decrypts the intersection
+    // Step 4: Alice decrypts the intersection
     public static int decryptIntersection(List<String> finalProducts, int setAliceLength) {
+        System.out.println("Participating as client");
         System.out.println("================================\nSTEP 4: decrypting intersections\n================================\n(belongs to the intersection iff decryption equals 0 in at least one batch)");
 
         int counter = 0;

@@ -11,13 +11,9 @@ import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
 import org.bouncycastle.math.ec.ECCurve;
 
 import org.bouncycastle.math.ec.ECPoint;
-import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
-import util.OPRF;
 import util.PSI.*;
 import java.math.BigInteger;
-
-// TODO should I use this ?
 import core.SimScenario;
 
 import java.util.*;
@@ -58,8 +54,6 @@ public class SensingApplication extends Application {
     private PublicKey pk;
     Encryptor encryptor;
     Decryptor decryptor;
-
-    int counter = 0;
 
     // Defines the curve
     private static final ECCurve CURVE = new SecP256K1Curve();
@@ -113,55 +107,6 @@ public class SensingApplication extends Application {
     public SensingApplication(SensingApplication s) {
         super(s);
         this.rng = new Random(this.seed);
-    }
-
-
-    private void createEncryptionParameters(){
-        EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
-        parms.setPolyModulusDegree(64);
-        parms.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
-        // t must be a prime number and t mod 2n = 1, then we can us batch encode
-        parms.setPlainModulus(257);
-        context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
-        keyGen = new KeyGenerator(context);
-        keyGen.createPublicKey(pk);
-    }
-
-
-    private void crowdCountingClientWithEncryption(Message msg){
-        List<Long> messageIDs = new ArrayList<>();
-        messageIDs.add(3L);
-
-        // Encryption parameters
-        EncryptionParameters parms = new EncryptionParameters(SchemeType.BFV);
-        parms.setPolyModulusDegree(64);
-        //parms.setPlainModulus(plainModulus);
-        parms.setCoeffModulus(CoeffModulus.create(64, new int[]{40}));
-        // t must be a prime number and t mod 2n = 1, then we can us batch encode
-        parms.setPlainModulus(257);
-        SealContext context = new SealContext(parms, false, CoeffModulus.SecLevelType.NONE);
-        BatchEncoder batchEncoder = new BatchEncoder(context);
-
-        // Ensure the plainVec array is large enough to hold all batched data
-        long[] plainVec = new long[batchEncoder.slotCount()];
-        for (int i = 0; i < plainVec.length && i < messageIDs.size(); i++) {
-            plainVec[i] = messageIDs.get(i);
-        }
-
-        Plaintext plain = new Plaintext();
-        batchEncoder.encode(plainVec, plain);
-
-        Ciphertext encrypted = new Ciphertext();
-       // keygen = new KeyGenerator(context);
-
-        PublicKey pk = new PublicKey();
-       // keygen.createPublicKey(pk);
-
-        Encryptor encryptor = new Encryptor(context, pk);
-       // Decryptor decryptor = new Decryptor(context, keygen.secretKey());
-        // Encryption - OPRFs
-        encryptor.encrypt(plain, encrypted);
-        receivedMessagesClient.put(msg, msg.getReceiveTime());
     }
 
     /** Receives and saves the complete message list for the client */
@@ -218,11 +163,6 @@ public class SensingApplication extends Application {
 
     @Override
     public void update(DTNHost host)  {
-        Collection<Message> messages = host.getMessageCollection();
-        ArrayList<Integer> messageIDs = new ArrayList<>();
-        for (Message msg : receivedMessagesServer.keySet()) {
-           messageIDs.add(Integer.getInteger(msg.getId()));
-        }
         if ( dtnHost != null && (MACAddressesClient.size() == 1698) && !isPSIed ){
             isPSIed = true;
             String msgId = "encrypted-message";

@@ -42,9 +42,6 @@ public class ProbeRouter extends ActiveRouter{
                 if ( this.getHost().toString().contains("sensor")){
                     app.handle(m, from);
                 }
-                else {
-                    // encrypted message
-                }
         }
         return super.receiveMessage(m, from);
     }
