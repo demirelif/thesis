@@ -1,22 +1,25 @@
 package routing;
 
 import core.*;
-
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 
 import static applications.SensingApplication.APP_ID;
 
 
-public class ProbeRouter extends ActiveRouter{
+public class ProbeRouter extends ActiveRouter {
+    private static final String ROLE = "role";
+    private String role;
 
     public ProbeRouter(Settings s) {
         super(s);
+        if (s.contains(ROLE)) {
+            this.role = s.getSetting(ROLE);
+        }
     }
 
     protected ProbeRouter(ProbeRouter r) {
         super(r);
+        this.role = r.role;
     }
 
     @Override
@@ -75,6 +78,8 @@ public class ProbeRouter extends ActiveRouter{
         return null;
     }
 
-
+    public String getRole() {
+        return this.role;
+    }
 }
 

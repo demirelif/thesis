@@ -13,6 +13,7 @@ import movement.MovementModel;
 import movement.Path;
 import routing.MessageRouter;
 import routing.PassiveRouter;
+import routing.ProbeRouter;
 import routing.util.RoutingInfo;
 
 import static core.Constants.DEBUG;
@@ -27,12 +28,11 @@ public class DTNHost implements Comparable<DTNHost> {
 	private Coord location; 	// where is the host
 	private Coord destination;	// where is it going
 
-	private MessageRouter router;
+	private ProbeRouter router;
 	private MovementModel movement;
 	private Path path;
 	private double speed;
 	private double nextTimeToMove;
-	private String role;
 	private String name;
 	private List<MessageListener> msgListeners;
 	private List<MovementListener> movListeners;
@@ -87,15 +87,6 @@ public class DTNHost implements Comparable<DTNHost> {
 		this.nextTimeToMove = movement.nextPathAvailable();
 		this.path = null;
 
-
-		// TODO: currently we have the node 5 as the receiver / client, and 3 and 4 as sender / server
-		if ( address == 5 ){
-			this.role = "receiver";
-		}
-		else if ( address == 4 ){
-			this.role = "sender";
-		}
-
 		if (movLs != null) { // inform movement listeners about the location
 			for (MovementListener l : movLs) {
 				l.initialLocation(this, this.location);
@@ -145,7 +136,7 @@ public class DTNHost implements Comparable<DTNHost> {
 	 */
 	private void setRouter(MessageRouter router) {
 		router.init(this, msgListeners);
-		this.router = router;
+		this.router = (ProbeRouter) router;
 	}
 
 	/**
@@ -551,11 +542,8 @@ public class DTNHost implements Comparable<DTNHost> {
 		return this.getAddress() - h.getAddress();
 	}
 
-	/**
-	 * Returns the type of this host
-	 */
-	public String getRole() {
-		return this.role;
+	public String getRole(){
+		return this.router.getRole();
 	}
 
 }

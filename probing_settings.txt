@@ -27,6 +27,9 @@ Group1.nrofHosts = 3
 Group1.msgTtl = 1
 Group1.movementModel = StreetMovement
 
+# receivePolicy
+Group1.mtaPolicy = policy1
+policy1.fromReceivePolicy = 0
 # This configuration file adds the probing application for all the Group1 nodes
 
 # Define new application
@@ -46,21 +49,22 @@ Group1.nrofApplications = 1
 Group1.application1 = probingApp
 Group2.nrofApplications = 1
 Group2.application1 = sensingApp
-
+Group3.nrofApplications = 1
+Group3.application1 = sensingApp
 
 # sensor (sender/server) settings
-Group2.groupID = s-sensor_
-Group2.nrofHosts = 3
-Group2.role = 1
+Group2.groupID = sensor
+Group2.nrofHosts = 2
+Group2.role = server
 # Group2.nodeLocation = 50,100
 Group2.movementModel = LinearFormation
 Group2.LinearFormation.startLocation = 50,50
 Group2.LinearFormation.endLocation = 450,50
 
 # sensor (receiver/client) settings
-Group3.groupID = r-sensor_
+Group3.groupID = sensor
 Group3.nrofHosts = 1
-Group3.role = CLIENT
+Group3.role = client
 # Group3.nodeLocation = 100,100
 Group3.movementModel = LinearFormation
 Group3.LinearFormation.startLocation = 450,50

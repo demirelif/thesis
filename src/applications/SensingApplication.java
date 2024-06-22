@@ -6,7 +6,6 @@ import edu.alibaba.mpc4j.crypto.fhe.KeyGenerator;
 import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
 import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
-import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.Modulus;
 import org.bouncycastle.math.ec.ECCurve;
 
@@ -20,10 +19,15 @@ import java.util.*;
 
 public class SensingApplication extends Application {
     private final boolean USE_ENCRYPTION = true;
+    private final String CLIENT = "client";
+    private final String SERVER = "server";
 
     // PSI Parameters
     private SealContext context;
     private KeyGenerator keyGen;
+
+    private double timeInterval = 0;
+    private final double timeIntervalIncrease = 1000;
 
     public static final String PROBE_INTERVAL = "interval";
     public static final String PROBE_DEST_RANGE = "destinationRange";
@@ -44,8 +48,6 @@ public class SensingApplication extends Application {
     private Random rng;
     private DTNHost dtnHost = null;
 
-    private double timeInterval = 120;
-    private double timeIntervalIncrease = 10;
 
     // Encryption parameters
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
@@ -78,7 +80,6 @@ public class SensingApplication extends Application {
     private final List<Integer> MACAddressesServer = new ArrayList<>();
     private final List<Integer> MACAddressesClient = new ArrayList<>();
 
-    private final int[] dummyAddresses = {1,2,3,4};
     private final List<List<BigInteger>> encryptedMessagesServer = new ArrayList<>();
     private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
 
@@ -121,9 +122,9 @@ public class SensingApplication extends Application {
 
     @Override
     public Message handle(Message msg, DTNHost host) {
+
         if ( msg.getId().equals("probe-encrypted-message")){
-            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed && dtnHost.getAddress() == 5){
-                isPSIed = true;
+            if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && dtnHost.getRole().equals(SERVER)){
                 PSIServer psiServer = new PSIServer();
                 psiServer.addStream(removeDuplicates(MACAddressesServer));
                 PSIClient psiClient = new PSIClient();
@@ -150,10 +151,13 @@ public class SensingApplication extends Application {
             // TODO change this part later
             // TODO why there are multiple hosts with the same address? / calling them multiple times ?
             this.dtnHost = msg.getTo();
-            if ( dtnHost.getAddress() == 4 ){
+            if ( dtnHost.getRole() == null ){
+                return msg;
+            }
+            if ( dtnHost.getRole().equals(SERVER)){
                 crowdCountingServer(msg);
             }
-            if ( dtnHost.getAddress() == 5 ){
+            if ( dtnHost.getRole().equals(CLIENT)){
                 crowdCountingClient(msg);
             }
         }
@@ -163,8 +167,10 @@ public class SensingApplication extends Application {
 
     @Override
     public void update(DTNHost host)  {
-        if ( dtnHost != null && (MACAddressesClient.size() == 1698) && !isPSIed ){
-            isPSIed = true;
+        double currentTime = SimClock.getTime();
+        if ( dtnHost != null && (currentTime - timeInterval >= timeIntervalIncrease)){
+
+            timeInterval = currentTime;
             String msgId = "encrypted-message";
             DTNHost receiver = SimScenario.getInstance().getHosts().get(3);
             Message m = new Message(host, receiver, "probe" + "-" +
