@@ -12,7 +12,7 @@ wifiInterface.transmitSpeed = 500k
 wifiInterface.transmitRange = 100
 
 # Define 6 different node groups
-Scenario.nrofHostGroups = 6
+Scenario.nrofHostGroups = 11
 
 # Common settings for all groups
 Group.router = ProbeRouter
@@ -34,21 +34,21 @@ Group1.nrofInterfaces = 0
 Group2.groupID = sensor
 Group2.nrofHosts = 1
 Group2.movementModel = StationaryMovement
-Group2.nodeLocation = 110,50
+Group2.nodeLocation = 110,110
 Group2.role = server
 
 # sensor 2
 Group3.groupID = sensor
 Group3.nrofHosts = 1
 Group3.movementModel = StationaryMovement
-Group3.nodeLocation = 280,50
+Group3.nodeLocation = 280,110
 Group3.role = client
 
 # sensor 3
 Group4.groupID = sensor
 Group4.nrofHosts = 1
 Group4.movementModel = StationaryMovement
-Group4.nodeLocation = 450,50
+Group4.nodeLocation = 450,110
 Group4.role = server
 Group4.interface1 = wifiInterface
 
@@ -56,14 +56,49 @@ Group4.interface1 = wifiInterface
 Group5.groupID = sensor
 Group5.nrofHosts = 1
 Group5.movementModel = StationaryMovement
-Group5.nodeLocation = 620,50
+Group5.nodeLocation = 110,280
 Group5.role = client
 
+# sensor 5
+Group6.groupID = sensor
+Group6.nrofHosts = 1
+Group6.movementModel = StationaryMovement
+Group6.nodeLocation = 280,280
+Group6.role = server
+
+# sensor 6
+Group7.groupID = sensor
+Group7.nrofHosts = 1
+Group7.movementModel = StationaryMovement
+Group7.nodeLocation = 450,280
+Group7.role = client
+
+# sensor 7
+Group8.groupID = sensor
+Group8.nrofHosts = 1
+Group8.movementModel = StationaryMovement
+Group8.nodeLocation = 110,450
+Group8.role = server
+
+# sensor 8
+Group9.groupID = sensor
+Group9.nrofHosts = 1
+Group9.movementModel = StationaryMovement
+Group9.nodeLocation = 280,450
+Group9.role = client
+
+# sensor 9
+Group10.groupID = sensor
+Group10.nrofHosts = 1
+Group10.movementModel = StationaryMovement
+Group10.nodeLocation = 450,450
+Group10.role = server
+
 # group6 (mobile nodes) specific settings
-Group6.groupID = p
-Group6.nrofHosts = 54
-Group6.movementModel = StreetMovement
-Group6.msgTtl = 1
+Group11.groupID = p
+Group11.nrofHosts = 3
+Group11.movementModel = RandomWaypoint
+Group11.msgTtl = 1
 
 # Define the probing application
 probingApp.type = ProbingApplication
@@ -72,8 +107,8 @@ probingApp.destination = 0
 probingApp.probeSize = 5
 
 # Set Probing app for all nodes
-Group6.nrofApplications = 1
-Group6.application1 = probingApp
+Group11.nrofApplications = 1
+Group11.application1 = probingApp
 
 # Define the sensing application
 sensingApp.type = SensingApplication
@@ -90,9 +125,21 @@ Group4.nrofApplications = 1
 Group4.application1 = sensingApp
 Group5.nrofApplications = 1
 Group5.application1 = sensingApp
+Group6.nrofApplications = 1
+Group6.application1 = sensingApp
+Group7.nrofApplications = 1
+Group7.application1 = sensingApp
+Group8.nrofApplications = 1
+Group8.application1 = sensingApp
+Group9.nrofApplications = 1
+Group9.application1 = sensingApp
+Group10.nrofApplications = 1
+Group10.application1 = sensingApp
+
+
 
 # receivePolicy
-Group6.mtaPolicy = policy1
+Group11.mtaPolicy = policy1
 policy1.fromReceivePolicy = 0
 
 ## Movement model settings
@@ -100,7 +147,7 @@ policy1.fromReceivePolicy = 0
 MovementModel.rngSeed = 1
 
 # World's size for Movement Models without implicit size (width, height; meters)
-MovementModel.worldSize = 730, 100
+MovementModel.worldSize = 560,560
 MovementModel.warmup = 0
 
 # how many reports to load
@@ -120,4 +167,3 @@ Events.nrof = 0
 GUI.EventLogPanel.nrofEvents = 100
 # Regular Expression log filter (see Pattern-class from the Java API for RE-matching details)
 #GUI.EventLogPanel.REfilter = .*p[1-9]<->p[1-9]$
-

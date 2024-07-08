@@ -25,13 +25,13 @@ public class Parameters {
     public static final int POLY_MODULUS_DEGREE = (int) Math.pow(2, 13);
 
     // The number of hashes we use for simple/Cuckoo hashing
-    public static final int NUMBER_OF_HASHES = 3;
+    public static final int NUMBER_OF_HASHES = 2;
 
     // Length of the database items
     public static final int SIGMA_MAX = (int) (Math.log(PLAIN_MODULUS) / Math.log(2)) + OUTPUT_BITS - ((int) (Math.log(NUMBER_OF_HASHES) / Math.log(2)) + 1);
 
     // B = [68, 176, 536, 1832, 6727] for log(server_size) = [16, 18, 20, 22, 24]
-    public static final int BIN_CAPACITY = 536;
+    public static final int BIN_CAPACITY = 3;
 
     // Partitioning parameter
     public static final int ALPHA = 16;

@@ -8,18 +8,31 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import util.PrivateSetIntersection;
 
-import java.math.BigInteger;
 import java.util.*;
 
 public class PSI {
-    private int batchSize = 3;
     PSIClient psiClient;
     PSIServer psiServer;
     private SealContext context;
     private KeyGenerator keyGen;
     private Evaluator evaluator;
+    private Ciphertext ciphertext;
 
     public PSI() {
+    }
+
+    public void createServer(){
+        psiServer = new PSIServer();
+    }
+
+    public void createClient(){
+        try {
+            PrivateSetIntersection.setup();
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+
+        psiClient = new PSIClient();
     }
 
     public void addPSIClient(PSIClient psiClient) {
@@ -38,6 +51,14 @@ public class PSI {
         }
     }
 
+    public PSIServer getPSIServer(){
+        return this.psiServer;
+    }
+
+    public PSIClient getPSIClient(){
+        return this.psiClient;
+    }
+
     public void addContext(SealContext context){
         this.context = context;
     }
@@ -46,38 +67,52 @@ public class PSI {
         this.keyGen = keyGenerator;
     }
 
-    public void competeIntersection(){
-        if ( psiClient == null || psiServer == null){
-            System.err.println("PSIClient or PSIServer is null");
-        }
-        else {
-                System.out.println("Client has " + psiClient.getStream().size() + " MAC addresses");
-                System.out.println("Server has " + psiServer.getStream().size() + " MAC addresses");
 
-                Set<Integer> intersection = new HashSet<>(psiClient.getStream());
-                intersection.retainAll(psiServer.getStream());
-                System.out.println("The total number of unique nodes " + intersection.size());
-            }
-    }
-
-    public void competeEncryptedIntersection(){
+    public int competeEncryptedIntersection(){
         try {
             PrivateSetIntersection.setup();
-
-            // Client encrypts its elements
-            Ciphertext ciphertext = PrivateSetIntersection.encryptStream(psiClient.getStream());
-
-            // Server performs homomorphic operations
-            List<String> finalProducts = PrivateSetIntersection.homomorphicOperations(ciphertext, psiClient.getStreamLength(), psiServer.getStream());
-
+            List<String> finalProducts = PrivateSetIntersection.homomorphicOperations(psiClient.getCiphertext(), psiClient.getStreamLength(), psiServer.getStream());
             assert finalProducts != null;
-
             // Client decrypts intersection
             int intersectionSize = PrivateSetIntersection.decryptIntersection(finalProducts, psiClient.getStreamLength());
             System.out.println("Intersection Size " + intersectionSize);
+            return intersectionSize;
 
-        } catch (Exception e){
-            System.err.println(e);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return 0;
+        }
+    }
+
+    public int competeEncryptedIntersectionForBigList(){
+        try {
+            PrivateSetIntersection.setup();
+            int intersectionSize = 0;
+            for ( Ciphertext cp : psiClient.getCiphertexts() ){
+                List<String> finalProducts = PrivateSetIntersection.homomorphicOperations(cp, Parameters.BIN_CAPACITY, psiServer.getStream());
+                assert finalProducts != null;
+                // Client decrypts intersection
+                intersectionSize += PrivateSetIntersection.decryptIntersection(finalProducts, Parameters.BIN_CAPACITY);
+            }
+            return intersectionSize;
+
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            return 0;
+        }
+    }
+
+    public void competeEncryptedIntersection(Ciphertext clientCipherText){
+        try {
+            PrivateSetIntersection.setup();
+            List<String> finalProducts = PrivateSetIntersection.homomorphicOperations(clientCipherText, 3, psiServer.getStream());
+            assert finalProducts != null;
+            // Client decrypts intersection
+            int intersectionSize = PrivateSetIntersection.decryptIntersection(finalProducts, 3);
+            System.out.println("Intersection Size " + intersectionSize);
+
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
         }
     }
 

@@ -6,6 +6,8 @@ import edu.alibaba.mpc4j.crypto.fhe.context.SchemeType;
 import edu.alibaba.mpc4j.crypto.fhe.context.SealContext;
 import edu.alibaba.mpc4j.crypto.fhe.modulus.CoeffModulus;
 import org.checkerframework.checker.units.qual.C;
+import util.Hash.SimpleHash;
+import util.PSI.Parameters;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -14,7 +16,7 @@ import java.util.Base64;
 import java.util.List;
 
 public class PrivateSetIntersection {
-    private static SealContext context;
+    public static SealContext context;
     private static BatchEncoder batchEncoder;
     private static Encryptor encryptor;
     private static Decryptor decryptor;
@@ -25,20 +27,53 @@ public class PrivateSetIntersection {
         setup();
 
         // Sample data
-        List<Integer> elementsAlice = Arrays.asList(5,3);
-        List<Integer> elementsBob = Arrays.asList(3,5);
+        //List<Integer> elementsAlice = Arrays.asList(5,3,6,10,);
+        // List<Integer> elementsBob = Arrays.asList(3, 5);
+        ArrayList<Integer> elementsAlice = new ArrayList<>();
+        ArrayList<Integer> elementsBob = new ArrayList<>();
 
-        // Step 2: Alice encrypts her elements
-        Ciphertext setCiphertextsAlice = encryptStream(elementsAlice);
+        // Populate the ArrayList with 100 members
+        for (int i = 1; i <= 10; i++) {
+            elementsAlice.add(i);
+        }
 
-        // Step 3: Bob performs homomorphic operations
-        List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, elementsAlice.size(), elementsBob);
+        // Populate the ArrayList with 100 members
+        for (int i = 1; i <= 10; i++) {
+            elementsBob.add(i);
+        }
 
-        // Step 4: Alice decrypts the intersection
-        assert finalProducts != null;
-        int intersectionSize = decryptIntersection(finalProducts, elementsAlice.size());
+        if ( elementsAlice.size() > Parameters.BIN_CAPACITY ){
+            // need to use hashing
+            SimpleHash SH = new SimpleHash(elementsAlice.size()/Parameters.BIN_CAPACITY);
+            SH.initializeHashTable(elementsAlice);
+            System.out.println("HASH TABLE");
+            SH.printHashTable();
+            int intersectionSize = 0;
+            for (int i = 0; i < SH.getHashTable().length; i++) {
+                // Step 2: Client encrypts her elements
+                List<Integer> clientList = Arrays.asList(SH.getHashTable()[i]);
+                Ciphertext setCiphertextsAlice = encryptStream(clientList);
+                // Step 3: Server performs homomorphic operations
+                List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, clientList.size(), elementsBob);
+                // Step 4: Client decrypts the intersection
+                assert finalProducts != null;
+                int result = decryptIntersection(finalProducts, clientList.size());
+                System.out.println("For bin " + i + " intersection size: " + result);
+                intersectionSize += result;
+            }
+            System.out.println("Size of common elements: " + intersectionSize);
 
-        System.out.println("Size of common elements: " + intersectionSize);
+        } else {
+            // Step 2: Client encrypts her elements
+            Ciphertext setCiphertextsAlice = encryptStream(elementsAlice);
+            // Step 3: Server performs homomorphic operations
+            List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, elementsAlice.size(), elementsBob);
+            // Step 4: Client decrypts the intersection
+            assert finalProducts != null;
+            int intersectionSize = decryptIntersection(finalProducts, elementsAlice.size());
+
+            System.out.println("Size of common elements: " + intersectionSize);
+        }
     }
 
     public static void createContext() {
@@ -53,7 +88,6 @@ public class PrivateSetIntersection {
 
     // Step 1: Setup
     public static void setup() throws Exception {
-        System.out.println("===============================\nSTEP 1: setup\n===============================");
         createContext();
         batchEncoder = new BatchEncoder(context);
         KeyGenerator keyGenerator = new KeyGenerator(context);
@@ -76,71 +110,73 @@ public class PrivateSetIntersection {
         return ciphertexts;
     }
 
-    public static Ciphertext encryptStream(List<Integer> elementsAlice) {
-        System.out.println("=========================\nSTEP 2: encrypt elements\n=========================");
-
-        int[] setAlice = elementsAlice.stream().mapToInt(i -> i).toArray();
-        long[] setAliceLong = new long[setAlice.length];
-        for (int i = 0; i < setAlice.length; i++) {
-            setAliceLong[i] = setAlice[i];
+    public static Ciphertext encryptStream(List<Integer> elements) {
+        int[] set = elements.stream().mapToInt(i -> i).toArray();
+        long[] setLong = new long[set.length];
+        for (int i = 0; i < set.length; i++) {
+            setLong[i] = set[i];
         }
 
-        Plaintext setPlaintextsAlice = new Plaintext();
-        batchEncoder.encode(setAliceLong, setPlaintextsAlice);
+        Plaintext setPlaintexts = new Plaintext();
+        batchEncoder.encode(setLong, setPlaintexts);
 
-        Ciphertext setCiphertextsAlice = encryptor.encrypt(setPlaintextsAlice);
-
-        System.out.println("Sending clients encrypted elements.");
-        return setCiphertextsAlice;
+        return encryptor.encrypt(setPlaintexts);
     }
 
-    // Step 3: Bob performs homomorphic operations
-    public static List<String> homomorphicOperations(Ciphertext setCiphertextsAlice, int setAliceLength, List<Integer> elementsBob) {
-        System.out.println("Participating as server");
-        System.out.println("============================================\nSTEP 3: homomorphically compute intersection\n============================================");
+    /** For longer sets with size bigger than 8, this method should be used */
+    public static List<List<String>> homomorphicOperationsForLongStreams(List<Ciphertext> setCiphertexts, int setClientLength, List<Integer> elementsServer) {
+        List<List<String>> homomorphicOperations = new ArrayList<>();
+        for (int i = 0; i < setCiphertexts.size(); i++) {
+            List<String> operationResults = homomorphicOperations(setCiphertexts.get(i), setClientLength, elementsServer);
+            homomorphicOperations.add(operationResults);
+        }
+        return homomorphicOperations;
+    }
 
+    // Step 3: Server performs homomorphic operations
+    public static List<String> homomorphicOperations(Ciphertext setCiphertextsClient, int setClientLength, List<Integer> elementsServer) {
         List<String> finalProducts = new ArrayList<>();
         try {
-            List<int[]> setsPlaintextsBob = new ArrayList<>();
-            for (int i = 0; i < elementsBob.size(); i += batchSize) {
-                int end = Math.min(i + batchSize, elementsBob.size());
-                int[] batch = elementsBob.subList(i, end).stream().mapToInt(Integer::intValue).toArray();
-                setsPlaintextsBob.add(batch);
+            List<int[]> setsPlaintextsServer = new ArrayList<>();
+            for (int i = 0; i < elementsServer.size(); i += batchSize) {
+                int end = Math.min(i + batchSize, elementsServer.size());
+                int[] batch = elementsServer.subList(i, end).stream().mapToInt(Integer::intValue).toArray();
+                setsPlaintextsServer.add(batch);
             }
-            for (int[] setPlaintextsBob : setsPlaintextsBob) {
+            for (int[] setPlaintextsServer : setsPlaintextsServer) {
                 Ciphertext finalProduct = new Ciphertext();
 
-                int[] firstElementBob = new int[setAliceLength];
-                Arrays.fill(firstElementBob, setPlaintextsBob[0]);
-                long[] firstElementBobLong = new long[setAliceLength];
-                for (int i = 0; i < firstElementBob.length; i++) {
-                    firstElementBobLong[i] = firstElementBob[i];
+                int[] firstElement = new int[setClientLength];
+                Arrays.fill(firstElement, setPlaintextsServer[0]);
+                long[] firstElementBobLong = new long[setClientLength];
+                for (int i = 0; i < firstElement.length; i++) {
+                    firstElementBobLong[i] = firstElement[i];
                 }
                 Plaintext firstElementBobEncoded = new Plaintext();
                 batchEncoder.encode(firstElementBobLong, firstElementBobEncoded);
 
-                evaluator.subPlain(setCiphertextsAlice, firstElementBobEncoded, finalProduct);
+                evaluator.subPlain(setCiphertextsClient, firstElementBobEncoded, finalProduct);
 
-                for (int i = 1; i < setPlaintextsBob.length; i++) {
-                    int[] ithElementBob = new int[setAliceLength];
-                    long[] ithElementBobLong = new long[setAliceLength];
-                    Arrays.fill(ithElementBob, setPlaintextsBob[i]);
-                    for (int j = 0; j < ithElementBob.length; j++) {
-                        ithElementBobLong[j] = ithElementBob[j];
+                for (int i = 1; i < setPlaintextsServer.length; i++) {
+                    int[] ithElement = new int[setClientLength];
+                    long[] ithElementLong = new long[setClientLength];
+                    Arrays.fill(ithElement, setPlaintextsServer[i]);
+                    for (int j = 0; j < ithElement.length; j++) {
+                        ithElementLong[j] = ithElement[j];
                     }
-                    Plaintext ithElementBobEncoded = new Plaintext();
-                    batchEncoder.encode(ithElementBobLong, ithElementBobEncoded);
+                    Plaintext ithElementEncoded = new Plaintext();
+                    batchEncoder.encode(ithElementLong, ithElementEncoded);
                     Ciphertext temp = new Ciphertext();
-                    evaluator.subPlain(setCiphertextsAlice, ithElementBobEncoded, temp);
+                    evaluator.subPlain(setCiphertextsClient, ithElementEncoded, temp);
                     evaluator.multiply(finalProduct, temp, finalProduct);
                 }
 
-                int[] randomPlaintext = new int[setAliceLength];
+                int[] randomPlaintext = new int[setClientLength];
                 SecureRandom random = new SecureRandom();
                 for (int j = 0; j < randomPlaintext.length; j++) {
                     randomPlaintext[j] = random.nextInt();
                 }
-                long[] randomPlaintextLong = new long[setAliceLength];
+                long[] randomPlaintextLong = new long[setClientLength];
                 for (int j = 0; j < randomPlaintextLong.length; j++) {
                     randomPlaintextLong[j] = (long) randomPlaintext[j];
                 }
@@ -158,11 +194,8 @@ public class PrivateSetIntersection {
         }
     }
 
-    // Step 4: Alice decrypts the intersection
-    public static int decryptIntersection(List<String> finalProducts, int setAliceLength) {
-        System.out.println("Participating as client");
-        System.out.println("================================\nSTEP 4: decrypting intersections\n================================\n(belongs to the intersection iff decryption equals 0 in at least one batch)");
-
+    // Step 4: Client decrypts the intersection
+    public static int decryptIntersection(List<String> finalProducts, int setClientLength) {
         int counter = 0;
         List<Integer> intersectionIndexes = new ArrayList<>();
         for (String finalProduct : finalProducts) {
@@ -177,7 +210,7 @@ public class PrivateSetIntersection {
                 long[] decoded = new long[batchEncoder.slotCount()];
                 batchEncoder.decode(decrypted, decoded);
 
-                for (int i = 0; i < setAliceLength; i++) {
+                for (int i = 0; i < setClientLength; i++) {
                     if (decoded[i] == 0) {
                         counter++;
                     }
@@ -188,7 +221,6 @@ public class PrivateSetIntersection {
             }
         }
 
-        System.out.println("Finished PSI");
         return counter;
     }
 }

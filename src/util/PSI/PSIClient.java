@@ -1,6 +1,5 @@
 package util.PSI;
 
-import core.Message;
 import edu.alibaba.mpc4j.crypto.fhe.*;
 import edu.alibaba.mpc4j.crypto.fhe.KeyGenerator;
 import edu.alibaba.mpc4j.crypto.fhe.context.EncryptionParameters;
@@ -12,23 +11,20 @@ import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 import org.bouncycastle.math.ec.custom.sec.SecP192R1Curve;
+import util.Hash.SimpleHash;
 import util.OPRF;
+import util.PrivateSetIntersection;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
+import java.util.*;
 
 import static com.google.common.graph.Graphs.transpose;
 import static util.PSI.AuxiliaryFunctions.windowing;
 
 // Performs Cuckoo hashing
 public class PSIClient {
+    public boolean isSmallSet;
     private static final ECCurve CURVE_USED = new SecP192R1Curve();
     private static ECPoint G = CURVE_USED.createPoint(
             new BigInteger("188DA80EB03090F67CBF20EB43A18800F4FF0AFD82FF1012", 16),
@@ -39,12 +35,16 @@ public class PSIClient {
     BigInteger ORDER_OF_GENERATOR = Parameters.ORDER_OF_GENERATOR;
     ECPoint clientPointPrecomputed = new FixedPointCombMultiplier().multiply(G, OPRFClientKey.mod(ORDER_OF_GENERATOR));
 
+    List<Ciphertext> ciphertexts = new ArrayList<>();
+
+    /** This hash table is needed when the client's set is too large for homomorphic calculations */
+    Integer[][] hashTable;
 
     private ArrayList<Integer> elements;
     private static final int modulusDegree = 64;
     EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
     Modulus plainModulus = new Modulus(1 << 6);
-    private SealContext context;
+   // private SealContext context;
     private KeyGenerator keygen;
     private PublicKey pk;
     private List<Integer> stream;
@@ -55,16 +55,23 @@ public class PSIClient {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
     List<List<BigInteger>> encryptedStream;
+    private Ciphertext ciphertext;
+
     public PSIClient() {
 
     }
 
     public void addStream(List<Integer> stream){
         this.stream = stream;
+        if ( this.stream.size() > Parameters.BIN_CAPACITY ){
+            isSmallSet = false;
+        } else {
+            isSmallSet = true;
+        }
     }
 
     public void addEncryptedStream(List<List<BigInteger>> stream){
-this.encryptedStream = stream;
+        this.encryptedStream = stream;
     }
 
     public int getStreamLength(){
@@ -84,13 +91,35 @@ this.encryptedStream = stream;
         }
     }
 
-    public List<Integer> getStream(){
+    protected List<Integer> getStream(){
         return this.stream;
+    }
+
+    public Ciphertext getCiphertext(){
+        return PrivateSetIntersection.encryptStream(this.stream);
+    }
+
+    public List<Ciphertext> getCiphertexts(){
+        List<Ciphertext> ciphertexts = new ArrayList<>();
+        Integer[][] hashTable = getHashTable();
+
+        for ( int i = 0; i < hashTable.length; i++ ){
+            ciphertexts.add(PrivateSetIntersection.encryptStream(Arrays.asList(hashTable[i])));
+        }
+        return ciphertexts;
+    }
+
+    public Integer[][] getHashTable() {
+        SimpleHash SH = new SimpleHash(this.stream.size() / Parameters.BIN_CAPACITY);
+        SH.initializeHashTable((ArrayList<Integer>) this.stream);
+        SH.printHashTable();
+        return SH.getHashTable();
     }
 
     public List<List<BigInteger>> getEncryptedStream(){
         return this.encryptedStream;
     }
+
     public void clientOnline(ArrayList<Integer> messageIDs) throws IOException {
         int logNoOfHashes = (int) (Math.log(Parameters.NUMBER_OF_HASHES)) + 1;
         int base = (int) Math.pow(2, Parameters.ELL);
@@ -102,7 +131,7 @@ this.encryptedStream = stream;
 
         // Setting the private and public contexts for the BFV Homomorphic Encryption scheme
         EncryptionParameters parameters = getParameters();
-        BatchEncoder batchEncoder = new BatchEncoder(context);
+        BatchEncoder batchEncoder = new BatchEncoder(PrivateSetIntersection.context);
 
         // Ensure the plainVec array is large enough to hold all batched data
         long[] plainVec = new long[batchEncoder.slotCount()];
@@ -114,14 +143,13 @@ this.encryptedStream = stream;
         batchEncoder.encode(plainVec, plain);
 
         Ciphertext encrypted = new Ciphertext();
-        context = new SealContext(parameters, false, CoeffModulus.SecLevelType.NONE);
-        keygen = new KeyGenerator(context);
+        keygen = new KeyGenerator(PrivateSetIntersection.context);
 
         PublicKey pk = new PublicKey();
         keygen.createPublicKey(pk);
 
-        Encryptor encryptor = new Encryptor(context, pk);
-        Decryptor decryptor = new Decryptor(context, keygen.secretKey());
+        Encryptor encryptor = new Encryptor(PrivateSetIntersection.context, pk);
+        Decryptor decryptor = new Decryptor(PrivateSetIntersection.context, keygen.secretKey());
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
 
@@ -310,5 +338,14 @@ this.encryptedStream = stream;
         // Encryption - OPRFs
         encryptor.encrypt(plain, encrypted);
         return plain;
+    }
+
+    public void addCiphertext(Ciphertext ciphertext) {
+        this.ciphertext = ciphertext;
+
+    }
+
+    public void addCiphertextToList(Ciphertext cp) {
+        this.ciphertexts.add(cp);
     }
 }
