@@ -28,7 +28,7 @@ public class SensingApplication extends Application {
     private final String SERVER = "server";
     private final Integer LAST_NODE_ADDRESS = 9;
 
-    private final Integer SIZE = 3;
+    private final Integer SIZE = 18;
 
     PSI PSI = new PSI();
 
@@ -121,6 +121,13 @@ public class SensingApplication extends Application {
     private void crowdCountingClient(Message msg){
         if ( msg.getFrom().getAddress() != 0 ){
             MACAddressesClient.add(msg.getFrom().getAddress());
+            if ( this.dtnHost.getAddress() == 2 ){
+                try (FileWriter writer = new FileWriter("sizeclient1" + SIZE + ".txt", true)) {
+                    writer.write("Client Size: " + MACAddressesClient.size() + " Time: " + System.currentTimeMillis() + "\n");
+                } catch (IOException e) {
+                    System.err.println(e.getMessage());
+                }
+            }
         }
     }
 
@@ -128,16 +135,23 @@ public class SensingApplication extends Application {
     private void crowdCountingServer(Message msg){
         if ( msg.getFrom().getAddress() != 0 ){
             MACAddressesServer.add(msg.getFrom().getAddress());
+            if  ( this.dtnHost.getAddress() == 1 ){
+                try (FileWriter writer = new FileWriter("sizeserver1" + SIZE + ".txt", true)) {
+                    writer.write("Server Size: " + MACAddressesServer.size() + " Time: " + System.currentTimeMillis() + "\n");
+                } catch (IOException e) {
+                    System.err.println(e.getMessage());
+                }
+            }
         }
     }
 
     @Override
     public Message handle(Message msg, DTNHost host) {
+
         if ( msg.getId().equals("probe-encrypted-message")){
             long startTime = System.nanoTime(); // Start timer at the beginning of the method
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed && dtnHost.getRole().equals(SERVER)){
                 //isPSIed = true;
-                System.out.println("The server size " + removeDuplicates(MACAddressesServer).size());
                 PSIServer psiServer = new PSIServer();
                 psiServer.addStream(removeDuplicates(MACAddressesServer));
                 PSIClient psiClient = new PSIClient();
@@ -155,8 +169,6 @@ public class SensingApplication extends Application {
                 } else {
                     intersectionSize = psi.competeEncryptedIntersection();
                 }
-
-               // System.out.println(this.dtnHost.getAddress() + " as the " + this.dtnHost.getRole() + " and " + msg.getFrom() + "as the " + msg.getFrom().getRole());
                 long endTime = System.nanoTime();
                 long totalDuration = endTime - startTime;
                 try (FileWriter writer = new FileWriter("output" + SIZE + ".txt", true)) {
@@ -164,10 +176,10 @@ public class SensingApplication extends Application {
                 } catch (IOException e) {
                     System.err.println(e.getMessage());
                 }
+
             }
         }
         else if ( msg.getId().equals("probe-encrypted-set-message")) {
-            System.out.println("big");
             long startTime = System.nanoTime(); // Start timer at the beginning of the method
             if (msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed && dtnHost.getRole().equals(SERVER)) {
                 PSIServer psiServer = new PSIServer();
@@ -180,23 +192,13 @@ public class SensingApplication extends Application {
                     Ciphertext cp = encryptStream(Arrays.asList(SH.getHashTable()[i]));
                     psiClient.addCiphertextToList(cp);
                 }
-               // psiClient.addStream(removeDuplicates(clientStream));
-               // Ciphertext setCiphertextsAlice = encryptStream(removeDuplicates(clientStream));
-               // psiClient.addCiphertext(setCiphertextsAlice);
                 PSI psi = new PSI();
                 psi.addPSIClient(psiClient);
                 psi.addPSIServer(psiServer);
 
                 int intersectionSize = psi.competeEncryptedIntersection();
-                System.out.println("done");
                 long endTime = System.nanoTime();
                 long totalDuration = endTime - startTime;
-                try (FileWriter writer = new FileWriter("output.txt", true)) {
-                    writer.write("SET 18");
-                    writer.write("Intersection size: " + intersectionSize + " " + this.dtnHost.getAddress() + "-" + msg.getFrom().getAddress() + " - duration: " + totalDuration+"\n");
-                } catch (IOException e) {
-                    System.err.println(e.getMessage());
-                }
             }
         }
 
@@ -243,6 +245,11 @@ public class SensingApplication extends Application {
                 sendEncryptedMessage(receiver1);
                 sendEncryptedMessage(receiver2);
             }
+            try (FileWriter writer = new FileWriter("server_size" + SIZE + ".txt", true)) {
+                writer.write("Server Size: " + MACAddressesServer.size() + "\n");
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+            }
         }
     }
 
@@ -262,38 +269,7 @@ public class SensingApplication extends Application {
         String msgLongId = "encrypted-set-message";
         List<Integer> uniqueClientSet = removeDuplicates(MACAddressesClient);
         // If the message size too long, it needs to be hashed
-
         setPSIParties();
-        if ( false ){
-          //  SimpleHash SH = new SimpleHash(uniqueClientSet.size()/Parameters.BIN_CAPACITY);
-          //  SH.initializeHashTable((ArrayList<Integer>) uniqueClientSet);
-           // System.out.println("HASH TABLE");
-           // SH.printHashTable();
-
-            //int intersectionSize = 0;
-            /**
-             *             List<Ciphertext> clientSetEcnrypted = new ArrayList<>();
-             *             for (int i = 0; i < SH.getHashTable().length; i++) {
-             *                 // Client encrypts her elements
-             *                 List<Integer> clientList = Arrays.asList(SH.getHashTable()[i]);
-             *                 Ciphertext setCiphertexts = encryptStream(clientList);
-             *                 clientSetEcnrypted.add(setCiphertexts);
-             *             }
-             */
-
-            Message m = new Message(this.dtnHost, receiver, "probe" +
-                    msgLongId,
-                    uniqueClientSet.size() * 8);
-            m.addProperty("type", "probe");
-            m.addProperty("size", uniqueClientSet.size());
-            m.addProperty("body", uniqueClientSet.size());
-            m.setAppID(APP_ID);
-            dtnHost.createNewMessage(m);
-            dtnHost.sendMessage(m.getId(), receiver);
-            super.sendEventToListeners("ProbeSent", null, dtnHost);
-        } else {
-            // TODO change the encryption later
-           //  Ciphertext ciphertext = encryptStream(uniqueClientSet);
             Message m = new Message(this.dtnHost, receiver, "probe" + "-" +
                     msgId,
                     uniqueClientSet.size() * 8);
@@ -304,7 +280,6 @@ public class SensingApplication extends Application {
             dtnHost.createNewMessage(m);
             dtnHost.sendMessage(m.getId(), receiver);
             super.sendEventToListeners("ProbeSent", null, dtnHost);
-        }
     }
 
     @Override

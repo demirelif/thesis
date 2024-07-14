@@ -96,7 +96,7 @@ Group10.role = server
 
 # group6 (mobile nodes) specific settings
 Group11.groupID = p
-Group11.nrofHosts = 3
+Group11.nrofHosts = 2
 Group11.movementModel = RandomWaypoint
 Group11.msgTtl = 1
 

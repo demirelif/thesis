@@ -61,7 +61,7 @@ Group5.role = client
 
 # group6 (mobile nodes) specific settings
 Group6.groupID = p
-Group6.nrofHosts = 54
+Group6.nrofHosts = 1
 Group6.movementModel = StreetMovement
 Group6.msgTtl = 1
 

@@ -23,59 +23,6 @@ public class PrivateSetIntersection {
     private static Evaluator evaluator;
     private static final int batchSize = 1;
 
-    public static void main(String[] args) throws Exception {
-        setup();
-
-        // Sample data
-        //List<Integer> elementsAlice = Arrays.asList(5,3,6,10,);
-        // List<Integer> elementsBob = Arrays.asList(3, 5);
-        ArrayList<Integer> elementsAlice = new ArrayList<>();
-        ArrayList<Integer> elementsBob = new ArrayList<>();
-
-        // Populate the ArrayList with 100 members
-        for (int i = 1; i <= 10; i++) {
-            elementsAlice.add(i);
-        }
-
-        // Populate the ArrayList with 100 members
-        for (int i = 1; i <= 10; i++) {
-            elementsBob.add(i);
-        }
-
-        if ( elementsAlice.size() > Parameters.BIN_CAPACITY ){
-            // need to use hashing
-            SimpleHash SH = new SimpleHash(elementsAlice.size()/Parameters.BIN_CAPACITY);
-            SH.initializeHashTable(elementsAlice);
-            System.out.println("HASH TABLE");
-            SH.printHashTable();
-            int intersectionSize = 0;
-            for (int i = 0; i < SH.getHashTable().length; i++) {
-                // Step 2: Client encrypts her elements
-                List<Integer> clientList = Arrays.asList(SH.getHashTable()[i]);
-                Ciphertext setCiphertextsAlice = encryptStream(clientList);
-                // Step 3: Server performs homomorphic operations
-                List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, clientList.size(), elementsBob);
-                // Step 4: Client decrypts the intersection
-                assert finalProducts != null;
-                int result = decryptIntersection(finalProducts, clientList.size());
-                System.out.println("For bin " + i + " intersection size: " + result);
-                intersectionSize += result;
-            }
-            System.out.println("Size of common elements: " + intersectionSize);
-
-        } else {
-            // Step 2: Client encrypts her elements
-            Ciphertext setCiphertextsAlice = encryptStream(elementsAlice);
-            // Step 3: Server performs homomorphic operations
-            List<String> finalProducts = homomorphicOperations(setCiphertextsAlice, elementsAlice.size(), elementsBob);
-            // Step 4: Client decrypts the intersection
-            assert finalProducts != null;
-            int intersectionSize = decryptIntersection(finalProducts, elementsAlice.size());
-
-            System.out.println("Size of common elements: " + intersectionSize);
-        }
-    }
-
     public static void createContext() {
         EncryptionParameters parameters = new EncryptionParameters(SchemeType.BFV);
         parameters.setPolyModulusDegree(64);
@@ -148,14 +95,14 @@ public class PrivateSetIntersection {
 
                 int[] firstElement = new int[setClientLength];
                 Arrays.fill(firstElement, setPlaintextsServer[0]);
-                long[] firstElementBobLong = new long[setClientLength];
+                long[] firstElementServerLong = new long[setClientLength];
                 for (int i = 0; i < firstElement.length; i++) {
-                    firstElementBobLong[i] = firstElement[i];
+                    firstElementServerLong[i] = firstElement[i];
                 }
-                Plaintext firstElementBobEncoded = new Plaintext();
-                batchEncoder.encode(firstElementBobLong, firstElementBobEncoded);
+                Plaintext firstElementServerEncoded = new Plaintext();
+                batchEncoder.encode(firstElementServerLong, firstElementServerEncoded);
 
-                evaluator.subPlain(setCiphertextsClient, firstElementBobEncoded, finalProduct);
+                evaluator.subPlain(setCiphertextsClient, firstElementServerEncoded, finalProduct);
 
                 for (int i = 1; i < setPlaintextsServer.length; i++) {
                     int[] ithElement = new int[setClientLength];
