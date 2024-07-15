@@ -121,13 +121,6 @@ public class SensingApplication extends Application {
     private void crowdCountingClient(Message msg){
         if ( msg.getFrom().getAddress() != 0 ){
             MACAddressesClient.add(msg.getFrom().getAddress());
-            if ( this.dtnHost.getAddress() == 2 ){
-                try (FileWriter writer = new FileWriter("sizeclient1" + SIZE + ".txt", true)) {
-                    writer.write("Client Size: " + MACAddressesClient.size() + " Time: " + System.currentTimeMillis() + "\n");
-                } catch (IOException e) {
-                    System.err.println(e.getMessage());
-                }
-            }
         }
     }
 
@@ -135,13 +128,6 @@ public class SensingApplication extends Application {
     private void crowdCountingServer(Message msg){
         if ( msg.getFrom().getAddress() != 0 ){
             MACAddressesServer.add(msg.getFrom().getAddress());
-            if  ( this.dtnHost.getAddress() == 1 ){
-                try (FileWriter writer = new FileWriter("sizeserver1" + SIZE + ".txt", true)) {
-                    writer.write("Server Size: " + MACAddressesServer.size() + " Time: " + System.currentTimeMillis() + "\n");
-                } catch (IOException e) {
-                    System.err.println(e.getMessage());
-                }
-            }
         }
     }
 
