@@ -155,9 +155,11 @@ public class SensingApplication extends Application {
                 } else {
                     intersectionSize = psi.competeEncryptedIntersection();
                 }
+                int crowdSize = removeDuplicates(MACAddressesServer).size() + clientStream.size() - intersectionSize;
                 long endTime = System.nanoTime();
                 long totalDuration = endTime - startTime;
                 try (FileWriter writer = new FileWriter("output" + SIZE + ".txt", true)) {
+                    writer.write("Crowd size: " + crowdSize + " " + this.dtnHost.getAddress() + "-" + msg.getFrom().getAddress() + " - duration: " + totalDuration+"\n");
                     writer.write("Intersection size: " + intersectionSize + " " + this.dtnHost.getAddress() + "-" + msg.getFrom().getAddress() + " - duration: " + totalDuration+"\n");
                 } catch (IOException e) {
                     System.err.println(e.getMessage());
@@ -183,6 +185,7 @@ public class SensingApplication extends Application {
                 psi.addPSIServer(psiServer);
 
                 int intersectionSize = psi.competeEncryptedIntersection();
+                int crowdSize = removeDuplicates(MACAddressesServer).size() + clientStream.size() - intersectionSize;
                 long endTime = System.nanoTime();
                 long totalDuration = endTime - startTime;
             }
