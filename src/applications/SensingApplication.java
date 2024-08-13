@@ -137,11 +137,9 @@ public class SensingApplication extends Application {
         if ( msg.getId().equals("probe-encrypted-message")){
             long startTime = System.nanoTime(); // Start timer at the beginning of the method
             if ( msg.getFrom().getAddress() != msg.getTo().getAddress() && !isPSIed && dtnHost.getRole().equals(SERVER)){
-                //isPSIed = true;
                 PSIServer psiServer = new PSIServer();
                 psiServer.addStream(removeDuplicates(MACAddressesServer));
                 PSIClient psiClient = new PSIClient();
-                // TODO encrypt it first
                 ArrayList<Integer> clientStream = (ArrayList<Integer>) msg.getProperty("body");
                 psiClient.addStream(removeDuplicates(clientStream));
                 Ciphertext setCiphertextsAlice = encryptStream(removeDuplicates(clientStream));
