@@ -75,7 +75,6 @@ public class PSI {
             assert finalProducts != null;
             // Client decrypts intersection
             int intersectionSize = PrivateSetIntersection.decryptIntersection(finalProducts, psiClient.getStreamLength());
-            System.out.println("Intersection Size " + intersectionSize);
             return intersectionSize;
 
         } catch (Exception e) {
@@ -109,7 +108,6 @@ public class PSI {
             assert finalProducts != null;
             // Client decrypts intersection
             int intersectionSize = PrivateSetIntersection.decryptIntersection(finalProducts, 3);
-            System.out.println("Intersection Size " + intersectionSize);
 
         } catch (Exception e) {
             System.err.println(e.getMessage());

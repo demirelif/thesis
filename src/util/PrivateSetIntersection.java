@@ -53,7 +53,6 @@ public class PrivateSetIntersection {
             plain.set(set.get(i));
             ciphertexts.add(encryptor.encrypt(plain));
         }
-        System.out.println("Encrypted.");
         return ciphertexts;
     }
 

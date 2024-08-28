@@ -32,10 +32,6 @@ public class SensingApplication extends Application {
 
     PSI PSI = new PSI();
 
-    // PSI Parameters
-    private SealContext context;
-    private KeyGenerator keyGen;
-
     private double timeInterval = 0;
     private final double timeIntervalIncrease = 1000;
 
@@ -58,40 +54,9 @@ public class SensingApplication extends Application {
     private Random rng;
     private DTNHost dtnHost = null;
 
-
-    // Encryption parameters
-    EncryptionParameters params = new EncryptionParameters(SchemeType.BFV);
-    Modulus plainModulus = new Modulus(1 << 6);
-
-    private PublicKey pk;
-    Encryptor encryptor;
-    Decryptor decryptor;
-
-    // Defines the curve
-    private static final ECCurve CURVE = new SecP256K1Curve();
-
-    private static final BigInteger ORDER_OF_GENERATOR = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951");
-
-    // Defines the generator point G
-    private static final ECPoint G = CURVE.createPoint(
-            new BigInteger("79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 16),
-            new BigInteger("483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 16)
-    );
-    private static BigInteger secretKeyServer = new BigInteger("1234567891011121314");
-    private static BigInteger secretKeyClient = new BigInteger("12345678910111213141516171819222222222222");
-
-    private BigInteger OPRFServerKey = new BigInteger("1234567891011121314151617181920");
-    private BigInteger OPRFClientKey = new BigInteger("12345678910111213141516171819222222222222");
-
-    private final HashMap<Message, Double> receivedMessagesServer = new HashMap<>();
-    private final HashMap<Message, Double> receivedMessagesClient = new HashMap<>();
-
     /** The data structure to hold the hashed MAC addresses of the received messages */
     private final List<Integer> MACAddressesServer = new ArrayList<>();
     private final List<Integer> MACAddressesClient = new ArrayList<>();
-
-    private final List<List<BigInteger>> encryptedMessagesServer = new ArrayList<>();
-    private final List<List<BigInteger>> encryptedMessagesClient = new ArrayList<List<BigInteger>>();
 
     public SensingApplication(Settings s) {
         if (s.contains(PROBE_INTERVAL)){
